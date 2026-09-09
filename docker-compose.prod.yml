@@ -1,0 +1,88 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: crt-redis-prod
+    restart: unless-stopped
+    expose:
+      - "6379"
+
+  backend:
+    build:
+      context: ./backend-restored/app
+      dockerfile: Dockerfile
+    container_name: crt-backend-prod
+    restart: unless-stopped
+    depends_on:
+      - redis
+    env_file:
+      - ./backend-restored/app/.env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGIN: https://crt.example.com,https://admin.crt.example.com,https://organizer.crt.example.com,https://api.crt.example.com
+      FRONTEND_URL: https://crt.example.com
+      ADMIN_FRONTEND_URL: https://admin.crt.example.com
+      ORGANIZER_FRONTEND_URL: https://organizer.crt.example.com
+    expose:
+      - "3000"
+    command: npm start
+
+  user:
+    build:
+      context: ./User
+      dockerfile: dockerfile
+    container_name: crt-user-prod
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: https://api.crt.example.com
+      VITE_APP_ENV: production
+    expose:
+      - "4173"
+    command: sh -c "npm install && npm run build && npm run preview -- --host 0.0.0.0 --port 4173"
+
+  admin:
+    build:
+      context: ./admin-restored
+      dockerfile: dockerfile
+    container_name: crt-admin-prod
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: https://api.crt.example.com
+      VITE_APP_ENV: production
+    expose:
+      - "4174"
+    command: sh -c "npm install && npm run build && npm run preview -- --host 0.0.0.0 --port 4174"
+
+  organizer:
+    build:
+      context: ./organizer-restored
+      dockerfile: dockerfile
+    container_name: crt-organizer-prod
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: https://api.crt.example.com
+      VITE_APP_ENV: production
+    expose:
+      - "4175"
+    command: sh -c "npm install && npm run build && npm run preview -- --host 0.0.0.0 --port 4175"
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: crt-nginx-prod
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - user
+      - admin
+      - organizer
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    command: ["nginx", "-g", "daemon off;"]
