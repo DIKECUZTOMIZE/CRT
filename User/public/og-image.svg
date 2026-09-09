@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">CRT social share image</title>
+  <desc id="desc">CRT brand social sharing banner with an icon and text</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#020817"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#5eead4"/>
+      <stop offset="55%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#14b8a6"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="1100" cy="110" r="180" fill="#0b4d46" opacity="0.4"/>
+  <circle cx="1075" cy="550" r="230" fill="#102c52" opacity="0.38"/>
+
+  <g transform="translate(90 120)">
+    <rect x="0" y="0" width="200" height="200" rx="46" fill="#020617" stroke="#1e293b" stroke-width="2"/>
+    <path d="M48 136V64h35c20 0 31.8 11.8 31.8 28.1 0 16.3-11.8 28.1-31.8 28.1H48zm28.7-21.1h2.8c7.3 0 11.3-4.2 11.3-10.8 0-6.7-4-10.9-11.3-10.9h-2.8v21.7z" fill="url(#brand)"/>
+    <path d="M120 136V64h19.2L167.8 114 189 64h19v72h-17V91.5L172 136h-11.7L141 91.5V136h-21z" fill="#E2E8F0" fill-opacity="0.96"/>
+  </g>
+
+  <g transform="translate(340 160)">
+    <text x="0" y="110" font-size="74" font-weight="800" fill="#f8fafc" font-family="Segoe UI, Arial, sans-serif">CRT</text>
+    <text x="0" y="182" font-size="34" font-weight="600" fill="#94a3b8" font-family="Segoe UI, Arial, sans-serif">Discover Events, Competitions &amp; Experiences</text>
+    <rect x="0" y="232" width="290" height="12" rx="6" fill="url(#brand)"/>
+    <text x="0" y="322" font-size="28" font-weight="600" fill="#cbd5e1" font-family="Segoe UI, Arial, sans-serif">Find your next memorable moment</text>
+  </g>
+</svg>
