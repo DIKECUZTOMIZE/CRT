@@ -38,3 +38,23 @@ export const listenToLocationUpdates = (callback) => {
     socket.off("user:location-updated", handler);
   };
 };
+
+export const listenToEventUpdates = (eventId, callback) => {
+  if (!eventId || typeof callback !== "function") {
+    return () => {};
+  }
+
+  const handler = (payload) => {
+    if (!payload || !payload.eventId || String(payload.eventId) !== String(eventId)) {
+      return;
+    }
+
+    callback(payload);
+  };
+
+  socket.on("event:updated", handler);
+
+  return () => {
+    socket.off("event:updated", handler);
+  };
+};

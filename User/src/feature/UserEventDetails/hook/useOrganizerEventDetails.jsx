@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
-import { io } from "socket.io-client";
 
+import { listenToEventUpdates } from "../../../app/config/socket.js";
 import { getOrganizerEventDetails } from "../api/organizerEventDetails.api.js";
 
 const normalizeLocationValue = (
@@ -346,20 +346,11 @@ export const useOrganizerEventDetails = (eventId) => {
   useEffect(() => {
     if (!eventId) return undefined;
 
-    const socket = io(import.meta.env.VITE_API_URL || "http://localhost:3000", {
-      withCredentials: true,
-      transports: ["websocket"],
-    });
-
-    socket.on("event:updated", (payload) => {
-      if (!payload || !payload.eventId || payload.eventId !== eventId) {
-        return;
-      }
-
+    const unsubscribe = listenToEventUpdates(eventId, () => {
       fetchDetails();
     });
 
-    return () => socket.disconnect();
+    return unsubscribe;
   }, [eventId, fetchDetails]);
 
   const toggleBookmark = () => {
