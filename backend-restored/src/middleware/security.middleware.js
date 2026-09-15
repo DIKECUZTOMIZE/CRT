@@ -64,12 +64,32 @@ const securityMiddleware = (app) => {
         .map((origin) => origin.trim())
         .filter(Boolean);
 
+    const getHostname = (value) => {
+        try {
+            return new URL(value).hostname.toLowerCase();
+        } catch {
+            return String(value || "").toLowerCase();
+        }
+    };
+
     const isAllowedOrigin = (origin) => {
         if (!origin) return true;
 
-        if (allowedOrigins.includes(origin)) return true;
+        const normalizedOrigin = String(origin).trim();
+        if (allowedOrigins.includes(normalizedOrigin)) return true;
 
-        return /^(http|https):\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(?::\d+)?$/.test(origin);
+        const originHostname = getHostname(normalizedOrigin);
+        const hostnameMatches = allowedOrigins.some((allowedOrigin) => {
+            const allowedHostname = getHostname(allowedOrigin);
+            return (
+                allowedHostname === originHostname ||
+                originHostname.endsWith(`.${allowedHostname}`)
+            );
+        });
+
+        if (hostnameMatches) return true;
+
+        return /^(http|https):\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(?::\d+)?$/.test(normalizedOrigin);
     };
 
     // CORS.
@@ -80,11 +100,12 @@ const securityMiddleware = (app) => {
                     return callback(null, true);
                 }
 
-                return callback(new Error("Not allowed by CORS"));
+                return callback(null, false);
             },
             credentials: true,
             methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
             allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+            optionsSuccessStatus: 204,
         })
     );
 

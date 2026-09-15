@@ -28,10 +28,10 @@ services:
       NODE_ENV: development
       PORT: 3000
       REDIS_URL: redis://redis:6379
-      CORS_ORIGIN: http://localhost:5173,http://localhost:5174,http://localhost:5175
-      FRONTEND_URL: http://localhost:5173
-      ADMIN_FRONTEND_URL: http://localhost:5174
-      ORGANIZER_FRONTEND_URL: http://localhost:5175
+      CORS_ORIGIN: https://crtcompete.com,https://admin.crtcompete.com,https://organizer.crtcompete.com
+      FRONTEND_URL: https://crtcompete.com
+      ADMIN_FRONTEND_URL: https://admin.crtcompete.com
+      ORGANIZER_FRONTEND_URL: https://organizer.crtcompete.com
     command: npm start
 
   backend-2:
