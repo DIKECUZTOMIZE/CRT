@@ -89,7 +89,7 @@ services:
     container_name: crt-redis-exporter
     restart: unless-stopped
     command:
-      - --redis.addr=redis://crt-redis:6379
+      - --redis.addr=redis://redis:6379
     ports:
       - "127.0.0.1:9121:9121"
     networks:
@@ -103,12 +103,10 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
-    env_file:
-      - ./backend-restored/.env
     environment:
-      MONGODB_URI: ${MONGO_URI}
+      MONGODB_URI: mongodb+srv://crt632055_db_user:M9SV9wuTIAA9or1g@cluster0.fkmjpob.mongodb.net/CRT
     command:
-      - --mongodb.uri=${MONGO_URI}
+      - --mongodb.uri=mongodb+srv://crt632055_db_user:M9SV9wuTIAA9or1g@cluster0.fkmjpob.mongodb.net/CRT
       - --mongodb.direct-connect=false
     ports:
       - "127.0.0.1:9216:9216"
