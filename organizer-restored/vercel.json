@@ -1,0 +1,10 @@
+{
+  "framework": "vite",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/((?!api/|_next/|assets/|.*\..*).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
