@@ -38,3 +38,11 @@ k6-summary.json
 *.tmp
 
 backend-restored/uploads/*
+
+# SSH / private keys
+*.pem
+
+# Temporary test output
+.tmp.out
+.vercel
+.env*
