@@ -64,15 +64,15 @@ const AuthBootstrap = ({ children }) => {
       }
 
       if (normalizedRole === "ADMIN") {
-        if (typeof window !== "undefined" && !window.location.href.startsWith("http://localhost:5174/")) {
-          window.location.assign("http://localhost:5174/admin/dashboard");
+        if (typeof window !== "undefined" && !window.location.href.startsWith("https://admin.crtcompete.com/")) {
+          window.location.assign("https://admin.crtcompete.com/admin/dashboard");
         }
         return;
       }
 
       if (normalizedRole === "ORGANIZER") {
-        if (typeof window !== "undefined" && !window.location.href.startsWith("http://localhost:5175/")) {
-          window.location.assign("http://localhost:5175/organizer/dashboard");
+        if (typeof window !== "undefined" && !window.location.href.startsWith("https://organizer.crtcompete.com/")) {
+          window.location.assign("https://organizer.crtcompete.com/organizer/dashboard");
         }
         return;
       }

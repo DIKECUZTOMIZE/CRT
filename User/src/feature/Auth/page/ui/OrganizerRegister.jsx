@@ -5,7 +5,7 @@ import AuthCloseButton from "../components/AuthCloseButton.jsx";
 import PasswordField from "../components/PasswordField.jsx";
 
 const OrganizerRegister = () => {
-    const { error, isSubmitting, submit } = useAuthForm("organizer-register", "http://localhost:5175/organizer/dashboard");
+    const { error, isSubmitting, submit } = useAuthForm("organizer-register", "https://organizer.crtcompete.com/organizer/dashboard");
     const [formData, setFormData] = useState({ username: "", email: "", password: "" });
 
     const updateField = (event) => {
@@ -70,7 +70,7 @@ const OrganizerRegister = () => {
                 <button type="submit" disabled={isSubmitting} className="h-11 w-full rounded-lg bg-emerald-500 font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-60">
                     {isSubmitting ? "Creating account..." : "Create account"}
                 </button>
-                <p className="text-center text-sm text-slate-400">Already registered? <button type="button" onClick={() => window.open("http://localhost:5175/organizer/login", "_blank", "noopener,noreferrer")} className="font-semibold text-emerald-400">Sign in</button></p>
+                <p className="text-center text-sm text-slate-400">Already registered? <button type="button" onClick={() => window.open("https://organizer.crtcompete.com/organizer/login", "_blank", "noopener,noreferrer")} className="font-semibold text-emerald-400">Sign in</button></p>
             </form>
         </main>
     );

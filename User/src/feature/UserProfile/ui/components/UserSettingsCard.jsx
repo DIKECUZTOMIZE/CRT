@@ -20,7 +20,7 @@ export default function UserSettingsCard() {
   };
 
   const handleOpenOrganizerPortal = () => {
-    window.open("http://localhost:5175/organizer/dashboard", "_blank", "noopener,noreferrer");
+    window.open("https://organizer.crtcompete.com/organizer/dashboard", "_blank", "noopener,noreferrer");
   };
 
   return (

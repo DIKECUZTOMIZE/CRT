@@ -10,28 +10,28 @@ test('user role resolves to internal login path', () => {
   assert.equal(getRoleHomePath('USER'), '/profile');
 });
 
-test('organizer role resolves to the organizer dashboard URL from user app', () => {
+test('organizer role resolves to the production organizer dashboard URL', () => {
   assert.equal(
     getRoleHomePath('ORGANIZER'),
-    'http://localhost:5175/organizer/dashboard'
+    'https://organizer.crtcompete.com/organizer/dashboard'
   );
 });
 
-test('admin role resolves to the admin dashboard URL from user app', () => {
+test('admin role resolves to the production admin dashboard URL', () => {
   assert.equal(
     getRoleHomePath('ADMIN'),
-    'http://localhost:5174/admin/dashboard'
+    'https://admin.crtcompete.com/admin/dashboard'
   );
 });
 
 test('absolute organizer URLs are preserved for browser redirect instead of router navigate', () => {
   assert.equal(
-    resolveRedirectTarget('http://localhost:5175/organizer/dashboard'),
-    'http://localhost:5175/organizer/dashboard'
+    resolveRedirectTarget('https://organizer.crtcompete.com/organizer/dashboard'),
+    'https://organizer.crtcompete.com/organizer/dashboard'
   );
   assert.equal(
-    resolveRedirectTarget('http://localhost:5175/organizer/login'),
-    'http://localhost:5175/organizer/login'
+    resolveRedirectTarget('https://organizer.crtcompete.com/organizer/login'),
+    'https://organizer.crtcompete.com/organizer/login'
   );
   assert.equal(resolveRedirectTarget('/profile'), '/profile');
 });

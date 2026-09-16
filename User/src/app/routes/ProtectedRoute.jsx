@@ -6,8 +6,8 @@ import { normalizeRole } from "../utils/roleUtils";
 const redirectToCorrectPortal = (role) => {
     const normalized = normalizeRole(role);
 
-    if (normalized === "ADMIN") return "http://localhost:5174/admin/dashboard";
-    if (normalized === "ORGANIZER") return "http://localhost:5175/organizer/dashboard";
+    if (normalized === "ADMIN") return "https://admin.crtcompete.com/admin/dashboard";
+    if (normalized === "ORGANIZER") return "https://organizer.crtcompete.com/organizer/dashboard";
 
     return "/login";
 };
