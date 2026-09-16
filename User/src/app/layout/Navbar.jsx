@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router";
 import { useSelector, useDispatch } from "react-redux";
 import {
-  Search,
   Bell,
   Trophy,
   User,
@@ -110,7 +109,6 @@ const Navbar = () => {
   const [selectedCity, setSelectedCity] = useState(currentLocation?.city || "All India");
   const [stateSearch, setStateSearch] = useState("");
   const [citySearch, setCitySearch] = useState("");
-  const [searchValue, setSearchValue] = useState("");
   const [notifications, setNotifications] = useState(defaultNotifications);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isLocationLoading, setIsLocationLoading] = useState(false);
@@ -124,28 +122,7 @@ const Navbar = () => {
     }
   }, [currentLocation?.state, currentLocation?.city]);
 
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const nextValue = params.get("search") || "";
-
-    setSearchValue((prev) => {
-      if (prev === nextValue) return prev;
-      return nextValue;
-    });
-  }, [location.search]);
-
   const unreadNotifications = notifications.filter((item) => !item.read).length;
-
-  const handleSearchSubmit = (nextValue = searchValue) => {
-    const trimmed = String(nextValue || "").trim();
-
-    if (!trimmed) {
-      navigate("/", { replace: true });
-      return;
-    }
-
-    navigate(`/?search=${encodeURIComponent(trimmed)}`, { replace: true });
-  };
 
   const handleNotificationRead = (id) => {
     setNotifications((prev) =>
@@ -309,37 +286,6 @@ const Navbar = () => {
               </div>
               <span className="text-xl font-black tracking-tight text-emerald-400">CRT</span>
             </Link>
-
-            <div className="hidden max-w-md flex-1 md:block">
-              <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <input
-                  type="search"
-                  value={searchValue}
-                  onChange={(event) => setSearchValue(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      handleSearchSubmit(event.currentTarget.value);
-                    }
-                  }}
-                  placeholder="Search events, competitions..."
-                  className="h-10 w-full rounded-xl border border-slate-800 bg-slate-900 pl-10 pr-10 text-xs text-white placeholder-slate-500 outline-none focus:border-emerald-500"
-                />
-                {searchValue && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchValue("");
-                      navigate("/", { replace: true });
-                    }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-                    aria-label="Clear search"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            </div>
 
             <nav className="hidden items-center gap-1 md:flex">
               {NAV_ITEMS.map((item) => (
