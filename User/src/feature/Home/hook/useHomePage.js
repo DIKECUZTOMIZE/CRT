@@ -125,10 +125,12 @@ export const useHomePage = ({ initialLoginOpen = false, initialRegisterOpen = fa
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const nextSearch = params.get("search") || "";
-    if (nextSearch !== searchQuery) {
-      setSearchQuery(nextSearch);
-    }
-  }, [location.search, searchQuery]);
+
+    setSearchQuery((prev) => {
+      if (prev === nextSearch) return prev;
+      return nextSearch;
+    });
+  }, [location.search]);
 
   useEffect(() => {
     if (!authUser) {

@@ -127,7 +127,11 @@ const Navbar = () => {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const nextValue = params.get("search") || "";
-    setSearchValue(nextValue);
+
+    setSearchValue((prev) => {
+      if (prev === nextValue) return prev;
+      return nextValue;
+    });
   }, [location.search]);
 
   const unreadNotifications = notifications.filter((item) => !item.read).length;
@@ -306,7 +310,7 @@ const Navbar = () => {
               <span className="text-xl font-black tracking-tight text-emerald-400">CRT</span>
             </Link>
 
-            <div className="hidden max-w-md flex-1 md:block" aria-hidden="true" style={{ display: "none" }}>
+            <div className="hidden max-w-md flex-1 md:block">
               <div className="relative">
                 <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                 <input
