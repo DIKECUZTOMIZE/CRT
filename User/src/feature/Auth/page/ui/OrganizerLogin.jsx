@@ -26,7 +26,7 @@ const OrganizerLogin = () => {
         handleRequestOtp,
         handlePasswordReset,
     } = useLoginPage({
-        redirectPath: "http://localhost:5175/organizer/dashboard",
+        redirectPath: "https://organizer.crtcompete.com/organizer/dashboard",
         allowedRoles: ["ORGANIZER"],
     });
 
@@ -182,7 +182,7 @@ const OrganizerLogin = () => {
                 </button>
 
                 <p className="text-center text-sm text-slate-400">
-                    New organizer? <button type="button" onClick={() => window.open("http://localhost:5175/organizer/register", "_blank", "noopener,noreferrer")} className="font-semibold text-emerald-400">Create an account</button>
+                    New organizer? <button type="button" onClick={() => window.open("https://organizer.crtcompete.com/organizer/register", "_blank", "noopener,noreferrer")} className="font-semibold text-emerald-400">Create an account</button>
                 </p>
             </form>
         </main>

@@ -18,8 +18,8 @@ export const getRoleHomePath = (role) => {
   const normalized = normalizeRole(role);
 
   if (isUserRole(normalized)) return "/profile";
-  if (isOrganizerRole(normalized)) return "http://localhost:5175/organizer/dashboard";
-  if (isAdminRole(normalized)) return "http://localhost:5174/admin/dashboard";
+  if (isOrganizerRole(normalized)) return "https://organizer.crtcompete.com/organizer/dashboard";
+  if (isAdminRole(normalized)) return "https://admin.crtcompete.com/admin/dashboard";
 
   return "/login";
 };
