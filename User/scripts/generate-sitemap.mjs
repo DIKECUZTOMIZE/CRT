@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const siteUrl = 'https://yourdomain.com';
-const apiBaseUrl = process.env.VITE_API_URL || 'http://localhost:3000';
+const siteUrl = 'https://www.crtcompete.com';
+const apiBaseUrl = process.env.VITE_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : 'https://api.crtcompete.com');
 const publicUrls = [
   '/',
   '/about',

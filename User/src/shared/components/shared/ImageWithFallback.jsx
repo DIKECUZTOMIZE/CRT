@@ -21,7 +21,18 @@ const normalizeImageSource = (value, fallback) => {
     return normalizedValue;
   }
 
-  const baseUrl = (import.meta.env.VITE_API_URL || (typeof window !== "undefined" ? `${window.location.origin}`.replace(/:\d+$/, ":3000") : "http://localhost:3000")).replace(/\/$/, "");
+  const defaultBaseUrl = (() => {
+    if (typeof window !== "undefined") {
+      const hostname = window.location.hostname || "";
+      if (["localhost", "127.0.0.1"].includes(hostname)) {
+        return `${window.location.origin}`.replace(/:\d+$/, ":3000");
+      }
+    }
+
+    return "https://api.crtcompete.com";
+  })();
+
+  const baseUrl = (import.meta.env.VITE_API_URL || defaultBaseUrl).replace(/\/$/, "");
   const basePath = normalizedValue.startsWith("/") ? normalizedValue : `/${normalizedValue}`;
 
   return `${baseUrl}${basePath}`;

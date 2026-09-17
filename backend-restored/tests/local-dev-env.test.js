@@ -17,3 +17,7 @@ test('local backend configuration matches localhost frontend origins', () => {
   assert.match(envText, /ADMIN_FRONTEND_URL="http:\/\/localhost:5174"/);
   assert.match(envText, /ORGANIZER_FRONTEND_URL="http:\/\/localhost:5175"/);
 });
+
+test('local Mongo connection uses the existing live database name casing', () => {
+  assert.match(envText, /MONGO_URI="mongodb:\/\/mongo:27017\/CRT"/);
+});

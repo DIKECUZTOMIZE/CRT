@@ -1,6 +1,11 @@
 import { io } from "socket.io-client";
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const DEFAULT_SOCKET_URL = "https://api.crtcompete.com";
+const SOCKET_URL = import.meta.env.VITE_API_URL || (
+  typeof window !== "undefined" && ["localhost", "127.0.0.1"].includes(window.location.hostname)
+    ? window.location.origin.replace(/:\d+$/, ":3000")
+    : DEFAULT_SOCKET_URL
+);
 
 export const socket = io(SOCKET_URL, {
   withCredentials: true,

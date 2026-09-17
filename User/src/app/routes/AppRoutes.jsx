@@ -73,15 +73,15 @@ const AuthRedirectRoute = ({ children }) => {
     const role = normalizeRole(user.role);
 
     if (role === "ADMIN") {
-      if (typeof window !== "undefined" && !window.location.href.startsWith("http://localhost:5174/")) {
-        window.location.assign("http://localhost:5174/admin/dashboard");
+      if (typeof window !== "undefined" && !window.location.href.startsWith("https://admin.crtcompete.com/")) {
+        window.location.assign("https://admin.crtcompete.com/admin/dashboard");
       }
       return null;
     }
 
     if (role === "ORGANIZER") {
-      if (typeof window !== "undefined" && !window.location.href.startsWith("http://localhost:5175/")) {
-        window.location.assign("http://localhost:5175/organizer/dashboard");
+      if (typeof window !== "undefined" && !window.location.href.startsWith("https://organizer.crtcompete.com/")) {
+        window.location.assign("https://organizer.crtcompete.com/organizer/dashboard");
       }
       return null;
     }
@@ -132,7 +132,7 @@ const AppRoutes = () => {
           path: "/login",
           element: (
             <AuthRedirectRoute>
-              <Home initialLoginOpen />
+              <UserLogin />
             </AuthRedirectRoute>
           ),
         },
@@ -141,7 +141,7 @@ const AppRoutes = () => {
           path: "/register",
           element: (
             <AuthRedirectRoute>
-              <Home initialRegisterOpen />
+              <UserRegister />
             </AuthRedirectRoute>
           ),
         },

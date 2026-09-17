@@ -26,7 +26,7 @@ const AdminLogin = () => {
         handleRequestOtp,
         handlePasswordReset,
     } = useLoginPage({
-        redirectPath: "http://localhost:5174/admin/dashboard",
+        redirectPath: "https://admin.crtcompete.com/admin/dashboard",
         allowedRoles: ["ADMIN"],
     });
 
@@ -186,7 +186,7 @@ const AdminLogin = () => {
                 </button>
 
                 <p className="text-center text-sm text-slate-400">
-                    Need organizer access? <button type="button" onClick={() => window.open("http://localhost:5175/organizer/login", "_blank", "noopener,noreferrer")} className="font-semibold text-emerald-400">Organizer login</button>
+                    Need organizer access? <button type="button" onClick={() => window.open("https://organizer.crtcompete.com/organizer/login", "_blank", "noopener,noreferrer")} className="font-semibold text-emerald-400">Organizer login</button>
                 </p>
             </form>
         </main>

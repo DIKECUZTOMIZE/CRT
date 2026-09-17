@@ -7,6 +7,7 @@
     <meta name="description" content="Discover upcoming events, competitions, and experiences on CRT. Explore trending events near you and book your next memorable experience." />
     <meta name="robots" content="index,follow" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/site.webmanifest" />
     <link rel="canonical" href="https://yourdomain.com/" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="CRT | Discover Events, Competitions & Experiences" />

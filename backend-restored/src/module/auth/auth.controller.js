@@ -146,18 +146,23 @@ export const googleLoginController = (req, res, next) => {
     })(req, res, next);
 };
 
+const getFrontendRedirectUrl = (path) => {
+    const baseUrl = String(config.app.frontendUrl || "https://www.crtcompete.com").replace(/\/+$/, "");
+    return `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+};
+
 export const googleCallbackController = async (req, res, next) => {
-    passport.authenticate("google", async (error, user) => {
+    passport.authenticate("google", { session: false }, async (error, user) => {
         if (error || !user) {
-            return res.redirect("http://localhost:5173/login?error=google_auth_failed");
+            return res.redirect(getFrontendRedirectUrl("/login?error=google_auth_failed"));
         }
 
         try {
             const data = await googleLoginService({ user });
             setAuthCookies(res, data.accessToken, data.refreshToken, data?.user?.role || "USER");
-            return res.redirect("http://localhost:5173/profile");
+            return res.redirect(getFrontendRedirectUrl("/profile"));
         } catch (loginError) {
-            return res.redirect("http://localhost:5173/login?error=google_auth_failed");
+            return res.redirect(getFrontendRedirectUrl("/login?error=google_auth_failed"));
         }
     })(req, res, next);
 };
