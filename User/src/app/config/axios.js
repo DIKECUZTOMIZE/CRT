@@ -1,12 +1,19 @@
 import axios from "axios";
 
+const PROD_API_BASE_URL = "https://api.crtcompete.com";
+
 const defaultApiBaseUrl = (() => {
     if (typeof window !== "undefined") {
-        const origin = window.location.origin || "http://localhost:3000";
-        return origin.replace(/:\d+$/, ":3000");
+        const hostname = window.location.hostname || "";
+        const isLocalhost = ["localhost", "127.0.0.1"].includes(hostname);
+
+        if (isLocalhost) {
+            const origin = window.location.origin || "http://localhost:3000";
+            return origin.replace(/:\d+$/, ":3000");
+        }
     }
 
-    return "http://localhost:3000";
+    return PROD_API_BASE_URL;
 })();
 
 export const API_BASE_URL = (

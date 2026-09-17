@@ -23,7 +23,7 @@ services:
       PORT: 3000
       REDIS_URL: redis://redis:6379
       CORS_ORIGIN: https://www.crtcompete.com,https://crtcompete.com,https://admin.crtcompete.com,https://organizer.crtcompete.com
-      FRONTEND_URL: https://crtcompete.com
+      FRONTEND_URL: https://www.crtcompete.com
       ADMIN_FRONTEND_URL: https://admin.crtcompete.com
       ORGANIZER_FRONTEND_URL: https://organizer.crtcompete.com
     expose:
