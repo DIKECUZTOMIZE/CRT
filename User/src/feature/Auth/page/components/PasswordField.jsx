@@ -10,6 +10,8 @@ const PasswordField = ({
   minLength = 8,
   autoComplete,
   className = "",
+  pattern,
+  title,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -22,6 +24,8 @@ const PasswordField = ({
           type={showPassword ? "text" : "password"}
           required={required}
           minLength={minLength}
+          pattern={pattern}
+          title={title}
           value={value}
           onChange={onChange}
           autoComplete={autoComplete}

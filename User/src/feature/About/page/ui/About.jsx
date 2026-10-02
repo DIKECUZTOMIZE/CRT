@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Trophy,
   Users,
@@ -14,22 +14,83 @@ import {
   Building2,
   Mail,
   MessageSquare,
-  Activity,
 } from "lucide-react";
+import { apiClient } from "../../../../app/config/axios.js";
+
+const formatMetricValue = (value) => {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return "—";
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 0,
+  }).format(Number(value));
+};
 
 export default function AboutPage() {
   const [activeTab, setActiveTab] = useState("participants"); // "participants" | "organizers"
   const [openFaq, setOpenFaq] = useState(null);
+  const [stats, setStats] = useState({
+    totalUsers: null,
+    totalOrganizers: null,
+    totalCompetitions: null,
+  });
+  const [isStatsLoading, setIsStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchStats = async () => {
+      try {
+        setIsStatsLoading(true);
+        setStatsError("");
+
+        const response = await apiClient.get("/api/about/stats");
+        const payload = response?.data?.data ?? {};
+
+        if (!isMounted) {
+          return;
+        }
+
+        setStats({
+          totalUsers: Number(payload.totalUsers ?? 0),
+          totalOrganizers: Number(payload.totalOrganizers ?? 0),
+          totalCompetitions: Number(payload.totalCompetitions ?? 0),
+        });
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setStats({
+          totalUsers: 0,
+          totalOrganizers: 0,
+          totalCompetitions: 0,
+        });
+        setStatsError(error?.message || "Unable to load platform stats.");
+      } finally {
+        if (isMounted) {
+          setIsStatsLoading(false);
+        }
+      }
+    };
+
+    void fetchStats();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const toggleFaq = (index) => {
     setOpenFaq(openFaq === index ? null : index);
   };
 
   const metrics = [
-    { label: "Total Participants", value: "120,000+", change: "+24% this month", icon: Users, color: "text-emerald-400" },
-    { label: "Competitions Hosted", value: "3,450+", change: "100% Verified", icon: Trophy, color: "text-sky-400" },
-    { label: "Active Organizers", value: "850+", change: "Across 45 Cities", icon: Building2, color: "text-purple-400" },
-    { label: "Platform Uptime", value: "99.99%", change: "SLA Guaranteed", icon: Activity, color: "text-amber-400" },
+    { label: "Total Users", value: isStatsLoading ? "—" : formatMetricValue(stats.totalUsers), change: statsError ? "Unavailable" : "Live database count", icon: Users, color: "text-emerald-400" },
+    { label: "Organizers", value: isStatsLoading ? "—" : formatMetricValue(stats.totalOrganizers), change: statsError ? "Unavailable" : "Verified role count", icon: Trophy, color: "text-sky-400" },
+    { label: "Competitions", value: isStatsLoading ? "—" : formatMetricValue(stats.totalCompetitions), change: statsError ? "Unavailable" : "Live event count", icon: Building2, color: "text-purple-400" },
   ];
 
   const participantFeatures = [

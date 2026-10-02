@@ -46,6 +46,15 @@ export const logout = async () => {
     }
 };
 
+export const handoffToOrganizer = async () => {
+    try {
+        const response = await apiClient.post(API_ENDPOINTS.organizerHandoff);
+        return response.data;
+    } catch (error) {
+        throw normalizeError(error);
+    }
+};
+
 export const getCurrentUser = async () => {
     try {
         const response = await apiClient.get(API_ENDPOINTS.currentUser);

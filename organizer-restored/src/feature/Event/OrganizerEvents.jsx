@@ -85,7 +85,7 @@ const OrganizerEvents = () => {
       </div>
 
       <div className="mb-6">
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
           {filterTabs.map((tab) => (
             <button
               key={tab}
@@ -134,18 +134,29 @@ const OrganizerEvents = () => {
           {filteredEvents.map((event) => (
             <div
               key={event.id}
-              className="group w-full min-w-0 overflow-hidden rounded-2xl border border-slate-800/90 bg-slate-900/60 p-4 shadow-lg shadow-slate-950/20 transition-all duration-200 hover:-translate-y-1 hover:border-emerald-500/40 hover:bg-slate-900 hover:shadow-emerald-500/10 active:scale-[0.99]"
+              className="group w-full min-w-0 overflow-hidden rounded-2xl border border-slate-800/90 bg-slate-900/60 p-4 shadow-lg shadow-slate-950/20 transition-all duration-200 hover:border-emerald-500/40 hover:bg-slate-900 hover:shadow-emerald-500/10 active:scale-[0.99]"
             >
               <div className="flex h-full min-w-0 w-full flex-col gap-3">
-                <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
-                  <img
-                    src={event.bannerUrl || "/assets/images/banner-placeholder.png"}
-                    alt={event.title}
-                    className="h-32 w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    onError={(e) => {
-                      e.currentTarget.src = "/assets/images/banner-placeholder.png";
-                    }}
-                  />
+                <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
+                  {(event.bannerUrl && event.bannerUrl !== "/assets/images/banner-placeholder.png") ||
+                  (event.cardImageUrl && event.cardImageUrl !== "/assets/images/banner-placeholder.png") ? (
+                    <img
+                      src={event.bannerUrl || event.cardImageUrl || "/assets/images/banner-placeholder.png"}
+                      alt={event.title}
+                      className="h-32 w-full object-cover transition-transform duration-300"
+                      onError={(e) => {
+                        e.currentTarget.src = "/assets/images/banner-placeholder.png";
+                      }}
+                    />
+                  ) : (
+                    <div className="h-32 w-full animate-pulse bg-slate-800/70" />
+                  )}
+                </div>
+
+                <div className="min-w-0">
+                  <h3 className="line-clamp-2 text-sm font-bold text-white" title={event.title}>
+                    {event.title}
+                  </h3>
                 </div>
 
                 <div className="flex items-center justify-between gap-2">
@@ -184,15 +195,6 @@ const OrganizerEvents = () => {
                   title={event.title}
                   className="min-w-0 w-full cursor-pointer overflow-hidden"
                 >
-                  <h3
-                    className="min-w-0 w-full text-sm font-bold text-slate-100 transition-colors group-hover:text-emerald-400 sm:text-base"
-                    title={event.title}
-                  >
-                    <span className="line-clamp-2 block min-w-0 w-full overflow-hidden break-words [overflow-wrap:anywhere]">
-                      {event.title}
-                    </span>
-                  </h3>
-
                   <div className="mt-3 flex min-w-0 w-full flex-col gap-1.5 text-[11px] text-slate-400">
                     <span className="flex min-w-0 items-center gap-1.5" title={`${event.date}`}>
                       <CalendarDays className="h-3 w-3 shrink-0 text-slate-500" />

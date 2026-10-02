@@ -15,18 +15,15 @@ export const useAdminAuth = () => {
       const currentUser = await getCurrentAdmin();
 
       if (!currentUser || !isAdminUser(currentUser)) {
-        sessionStorage.removeItem("crt-admin-auth");
-        sessionStorage.removeItem("crt-admin-user");
+        setUser(null);
         navigate("/admin/login", { replace: true });
         return null;
       }
 
-      sessionStorage.setItem("crt-admin-user", JSON.stringify(currentUser));
       setUser(currentUser);
       return currentUser;
     } catch (err) {
-      sessionStorage.removeItem("crt-admin-auth");
-      sessionStorage.removeItem("crt-admin-user");
+      setUser(null);
       navigate("/admin/login", { replace: true });
       return null;
     }
@@ -60,6 +57,7 @@ export const useAdminAuth = () => {
       const currentUser = await refreshUser();
       return currentUser;
     } catch (err) {
+      setUser(null);
       setError(err.message || "Invalid admin credentials");
       throw err;
     }

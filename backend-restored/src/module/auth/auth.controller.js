@@ -17,7 +17,14 @@ import {
     requestPasswordResetService,
     resetPasswordWithOtpService,
     getRegisteredEmailsService,
+    organizerHandoffService,
 } from "./auth.service.js";
+import {
+    createGoogleOAuthState,
+    getGoogleOAuthPortal,
+    validateGoogleOAuthState,
+    OAUTH_PORTALS,
+} from "./oauth.state.js";
 
 const getCookieSetForRole = (role) => {
     const normalizedRole = String(role ?? "").trim().toUpperCase();
@@ -27,11 +34,40 @@ const getCookieSetForRole = (role) => {
     return config.auth.cookie.organizer;
 };
 
-const getCookieSetForRequest = (req) => {
-    const origin = String(req.headers.origin || req.headers.referer || "").toLowerCase();
-    const isOrganizerClient = /5175|5174|organizer/i.test(origin);
+export const resolvePortalCookieRole = (req, fallbackRole = "USER") => {
+    const explicitPortal = String(
+        req?.body?.portal ||
+        req?.query?.portal ||
+        req?.headers?.["x-portal"] ||
+        ""
+    ).trim().toLowerCase();
 
-    return isOrganizerClient ? config.auth.cookie.organizer : config.auth.cookie.user;
+    if (explicitPortal === "organizer") return "ORGANIZER";
+    if (explicitPortal === "admin") return "ADMIN";
+    if (explicitPortal === "user") return "USER";
+
+    const origin = String(req?.headers?.origin || req?.headers?.referer || "").toLowerCase();
+    if (/5174|admin/i.test(origin)) return "ADMIN";
+    if (/5175|organizer/i.test(origin)) return "ORGANIZER";
+
+    // When a request comes without an explicit portal marker, prefer the safe default User portal.
+    // A mixed-role user can have an organizer primary role, and using that as the cookie fallback
+    // would incorrectly set organizer cookies during User login.
+    return "USER";
+};
+
+const getCookieSetForRequest = (req) => {
+    const requestRole = resolvePortalCookieRole(req, "USER");
+
+    if (requestRole === "ADMIN") {
+        return config.auth.cookie.admin;
+    }
+
+    if (requestRole === "ORGANIZER") {
+        return config.auth.cookie.organizer;
+    }
+
+    return config.auth.cookie.user;
 };
 
 const clearAuthCookies = (res) => {
@@ -131,7 +167,15 @@ export const registerAdminController = async (req, res) => {
     );
 };
 
-export const googleLoginController = (req, res, next) => {
+const getFrontendRedirectUrl = (path, portal = "user") => {
+    const baseUrl = portal === "organizer"
+        ? String(config.app.organizerFrontendUrl || config.app.frontendUrl || "http://localhost:5175").replace(/\/+$/, "")
+        : String(config.app.frontendUrl || "http://localhost:5173").replace(/\/+$/, "");
+
+    return `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+};
+
+const getGoogleLoginRedirect = async (req, res, portal) => {
     if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CALLBACK_URL) {
         return res.status(500).json({
             success: false,
@@ -139,37 +183,122 @@ export const googleLoginController = (req, res, next) => {
         });
     }
 
-    return passport.authenticate("google", {
+    const portalKey = getGoogleOAuthPortal(portal);
+    const state = await createGoogleOAuthState(portalKey);
+
+    const authOptions = {
         scope: ["profile", "email"],
         prompt: "consent",
         accessType: "offline",
-    })(req, res, next);
+        state,
+    };
+
+    return passport.authenticate("google", authOptions)(req, res, () => {});
 };
 
-const getFrontendRedirectUrl = (path) => {
-    const baseUrl = String(config.app.frontendUrl || "https://www.crtcompete.com").replace(/\/+$/, "");
-    return `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+const getGoogleLoginService = () => globalThis.__CRT_GOOGLE_LOGIN_SERVICE || googleLoginService;
+
+export const googleLoginController = async (req, res, next) => {
+    const requestedPortal = String(req.query?.portal || "user").trim().toLowerCase();
+
+    if (requestedPortal === "organizer") {
+        return getGoogleLoginRedirect(req, res, OAUTH_PORTALS.ORGANIZER);
+    }
+
+    return getGoogleLoginRedirect(req, res, OAUTH_PORTALS.USER);
 };
 
 export const googleCallbackController = async (req, res, next) => {
-    passport.authenticate("google", { session: false }, async (error, user) => {
-        if (error || !user) {
-            return res.redirect(getFrontendRedirectUrl("/login?error=google_auth_failed"));
-        }
+    const state = String(req.query?.state || "").trim();
+    const portalFromRequest = String(req.query?.portal || "").trim().toLowerCase();
+    const validation = await validateGoogleOAuthState(state, portalFromRequest || undefined);
 
-        try {
-            const data = await googleLoginService({ user });
-            setAuthCookies(res, data.accessToken, data.refreshToken, data?.user?.role || "USER");
-            return res.redirect(getFrontendRedirectUrl("/profile"));
-        } catch (loginError) {
-            return res.redirect(getFrontendRedirectUrl("/login?error=google_auth_failed"));
-        }
-    })(req, res, next);
+    if (!validation.valid) {
+        const redirectPortal = portalFromRequest === "organizer" ? "organizer" : "user";
+        const loginPath = redirectPortal === "organizer" ? "/organizer/login" : "/login";
+        return res.redirect(getFrontendRedirectUrl(loginPath, redirectPortal) + "?error=google_auth_failed");
+    }
+
+    req.googleOAuthStateValidation = validation;
+
+    return new Promise((resolve) => {
+        passport.authenticate("google", { session: false }, async (error, user) => {
+            if (error || !user) {
+                const redirectPortal = validation.portal === OAUTH_PORTALS.ORGANIZER ? "organizer" : "user";
+                const loginPath = redirectPortal === "organizer" ? "/organizer/login" : "/login";
+                res.redirect(getFrontendRedirectUrl(loginPath, redirectPortal) + "?error=google_auth_failed");
+                return resolve();
+            }
+
+            try {
+                const normalizedRole = String(user.role ?? "").trim().toUpperCase();
+                const roles = Array.isArray(user.roles) ? user.roles.map((role) => String(role ?? "").trim().toUpperCase()) : [];
+                const isAdmin = normalizedRole === "ADMIN" || roles.includes("ADMIN");
+                const isOrganizer = normalizedRole === "ORGANIZER" || roles.includes("ORGANIZER");
+                const isUser = normalizedRole === "USER" || roles.includes("USER");
+                const requestedPortal = validation.portal || portalFromRequest || OAUTH_PORTALS.USER;
+
+                if (isAdmin) {
+                    const loginPath = "/login";
+                    res.redirect(getFrontendRedirectUrl(loginPath, "user") + "?error=admin_google_oauth_not_allowed");
+                    return resolve();
+                }
+
+                if (requestedPortal === OAUTH_PORTALS.ORGANIZER) {
+                    if (!isOrganizer && !roles.includes("USER")) {
+                        res.redirect(getFrontendRedirectUrl("/organizer/login", "organizer") + "?error=organizer_access_required");
+                        return resolve();
+                    }
+
+                    if (!isOrganizer && roles.includes("USER")) {
+                        res.redirect(getFrontendRedirectUrl("/organizer/login", "organizer") + "?error=organizer_access_required");
+                        return resolve();
+                    }
+
+                    const data = await getGoogleLoginService()({ user });
+                    setAuthCookies(res, data.accessToken, data.refreshToken, "ORGANIZER");
+                    res.redirect(getFrontendRedirectUrl("/organizer/dashboard", "organizer"));
+                    return resolve();
+                }
+
+                if (requestedPortal === OAUTH_PORTALS.USER) {
+                    if (isOrganizer && (normalizedRole === "ORGANIZER" || roles.includes("ORGANIZER"))) {
+                        const data = await getGoogleLoginService()({ user });
+                        setAuthCookies(res, data.accessToken, data.refreshToken, "USER");
+                        res.redirect(getFrontendRedirectUrl("/profile", "user"));
+                        return resolve();
+                    }
+
+                    if (!isUser && !isOrganizer) {
+                        const data = await getGoogleLoginService()({ user });
+                        setAuthCookies(res, data.accessToken, data.refreshToken, "USER");
+                        res.redirect(getFrontendRedirectUrl("/profile", "user"));
+                        return resolve();
+                    }
+
+                    const data = await getGoogleLoginService()({ user });
+                    setAuthCookies(res, data.accessToken, data.refreshToken, "USER");
+                    res.redirect(getFrontendRedirectUrl("/profile", "user"));
+                    return resolve();
+                }
+
+                res.redirect(getFrontendRedirectUrl("/login", "user") + "?error=google_auth_failed");
+                return resolve();
+            } catch (loginError) {
+                const redirectPortal = validation.portal === OAUTH_PORTALS.ORGANIZER ? "organizer" : "user";
+                const loginPath = redirectPortal === "organizer" ? "/organizer/login" : "/login";
+                res.redirect(getFrontendRedirectUrl(loginPath, redirectPortal) + "?error=google_auth_failed");
+                return resolve();
+            }
+        })(req, res, next);
+    });
 };
 
 export const loginUserController = async (req, res) => {
     const data = await loginUserService(req.body);
-    setAuthCookies(res, data.accessToken, data.refreshToken, data?.user?.role || "USER");
+    const portalRole = resolvePortalCookieRole(req, "USER");
+
+    setAuthCookies(res, data.accessToken, data.refreshToken, portalRole);
 
     delete data.accessToken;
     delete data.refreshToken;
@@ -225,6 +354,21 @@ export const logoutUserController = async (req, res) => {
         res,
         "User logged out successfully",
         null,
+        200
+    );
+};
+
+export const organizerHandoffController = async (req, res) => {
+    const data = await organizerHandoffService(req.user.sub);
+    setAuthCookies(res, data.accessToken, data.refreshToken, "ORGANIZER");
+
+    delete data.accessToken;
+    delete data.refreshToken;
+
+    return buildSuccessResponse(
+        res,
+        "Organizer handoff successful",
+        { user: data.user, authorized: true },
         200
     );
 };

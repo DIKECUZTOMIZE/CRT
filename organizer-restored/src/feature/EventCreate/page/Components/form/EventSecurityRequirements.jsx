@@ -74,7 +74,7 @@ export default function EventSecurityRequirements() {
     },
   ];
 
-  const displayRequirements = securityFields.length > 0 ? securityFields : defaultRequirements;
+  const displayRequirements = securityFields.length > 0 ? securityFields : isEditing ? [] : defaultRequirements;
   const activeRequirementsCount = displayRequirements.length;
 
   const securityCategories = [

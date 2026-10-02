@@ -53,7 +53,7 @@ const MobileTabBar = () => {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-800/80 bg-slate-950/95 backdrop-blur-xl lg:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-emerald-100/80 bg-[rgba(255,255,255,0.95)] backdrop-blur-xl shadow-[0_-6px_18px_rgba(16,185,129,0.05)] lg:hidden">
       <div className="mx-auto flex h-[calc(4.25rem+env(safe-area-inset-bottom))] max-w-md items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
         {MOBILE_TABS.map((item) => {
           const Icon = item.icon;
@@ -70,12 +70,12 @@ const MobileTabBar = () => {
               type="button"
               onClick={item.id === "account" ? handleAccountClick : () => navigate(item.path)}
               className={`flex min-w-[64px] flex-1 flex-col items-center justify-center gap-1 rounded-xl py-1 transition-all duration-200 ${
-                isActive ? "text-emerald-400" : "text-slate-500 hover:text-slate-300"
+                isActive ? "text-emerald-700" : "text-slate-500 hover:text-slate-700"
               }`}
             >
               <div
                 className={`flex h-7 w-7 items-center justify-center rounded-lg ${
-                  isActive ? "bg-emerald-500/10" : ""
+                  isActive ? "bg-[#ECFDF5] text-emerald-700" : "text-slate-500"
                 }`}
               >
                 <Icon

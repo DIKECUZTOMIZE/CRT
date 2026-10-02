@@ -3,7 +3,7 @@ import CompetitionSection from "./CompetitionSection";
 
 const PopularEvents = ({ competitions = [], savedIds = [], onToggleSave }) => (
   <CompetitionSection
-    title="Popular Competitions"
+    title="Popular"
     subtitle="Trending events with maximum participant signups"
     competitions={competitions}
     savedIds={savedIds}

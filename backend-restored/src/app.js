@@ -13,7 +13,9 @@ import eventRouter from "./module/event/event.routes.js";
 import uploadRouter from "./module/upload/upload.routes.js";
 import profileRouter from "./module/profile/profile.routes.js";
 import adminRouter from "./module/admin/admin.routes.js";
+import aboutRouter from "./module/about/about.routes.js";
 import homeSliderRouter from "./module/home-slider/home-slider.routes.js";
+import notificationRouter from "./module/notification/notification.routes.js";
 
 const createApp = () => {
     const app = express();
@@ -63,7 +65,9 @@ const createApp = () => {
     app.use("/api/v1/profile", profileRouter);
     app.use("/api/v1/events", eventRouter);
     app.use("/api/v1/admin", adminRouter);
+    app.use("/api/v1/about", aboutRouter);
     app.use("/api/v1/home-slider", homeSliderRouter);
+    app.use("/api/v1/notifications", notificationRouter);
 
     // Backward compatibility during migration to v1.
     app.use("/api/auth", authRouter);
@@ -71,7 +75,9 @@ const createApp = () => {
     app.use("/api/profile", profileRouter);
     app.use("/api/events", eventRouter);
     app.use("/api/admin", adminRouter);
+    app.use("/api/about", aboutRouter);
     app.use("/api/home-slider", homeSliderRouter);
+    app.use("/api/notifications", notificationRouter);
 
     // 404 handler.
     app.use((req, res) => {

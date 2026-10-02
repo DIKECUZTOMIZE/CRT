@@ -9,12 +9,20 @@ const AuthCloseButton = ({ onClose }) => {
     const user = useSelector((state) => state.auth.user);
 
     const handleClose = () => {
+        const normalizedPath = (window.location.pathname || "/").replace(/\/+$/, "") || "/";
+        const isStandaloneAuthRoute = normalizedPath === "/login" || normalizedPath === "/register";
+
         if (typeof onClose === "function") {
             onClose();
 
-            if (window.location.pathname === "/login" || window.location.pathname === "/register") {
+            if (isStandaloneAuthRoute) {
                 navigate("/", { replace: true });
             }
+            return;
+        }
+
+        if (isStandaloneAuthRoute) {
+            navigate("/", { replace: true });
             return;
         }
 

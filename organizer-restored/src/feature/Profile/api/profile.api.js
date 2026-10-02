@@ -1,25 +1,7 @@
 import apiClient, { normalizeError } from "../../../app/config/axios.js";
 import { initialProfileData } from "../utils/initialProfileData.jsx";
 
-const PROFILE_STORAGE_KEY = "organizer_profile_v1";
 const FALLBACK_AVATAR = "";
-
-const safeReadStorage = () => {
-  try {
-    const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-};
-
-const safeWriteStorage = (payload) => {
-  try {
-    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(payload));
-  } catch {
-    // ignore storage failures silently in restricted environments
-  }
-};
 
 const combineAddressParts = (value) => {
   if (!value) {
@@ -175,38 +157,22 @@ export const getOrganizerProfile = async (user = null) => {
     const payload = profileResponse?.data?.data?.profile || profileResponse?.data?.profile || null;
 
     if (payload) {
-      const hydrated = mergeProfileResponse(payload);
-      safeWriteStorage(hydrated);
-      return hydrated;
+      return mergeProfileResponse(payload);
     }
-  } catch {
+  } catch (profileError) {
     try {
       const currentUserResponse = await apiClient.get("/api/auth/current-user");
       const payload = currentUserResponse?.data?.data?.user || currentUserResponse?.data?.user || null;
 
       if (payload) {
-        const hydrated = mergeCurrentUserIntoProfile(currentUserFallback, payload);
-        safeWriteStorage(hydrated);
-        return hydrated;
+        return mergeCurrentUserIntoProfile(currentUserFallback, payload);
       }
     } catch {
-      const stored = safeReadStorage();
-      if (stored) {
-        return mergeCurrentUserIntoProfile(stored, user);
-      }
-
-      safeWriteStorage(currentUserFallback);
-      return currentUserFallback;
+      throw profileError;
     }
   }
 
-  const stored = safeReadStorage();
-  if (stored) {
-    return mergeCurrentUserIntoProfile(stored, user);
-  }
-
-  safeWriteStorage(currentUserFallback);
-  return currentUserFallback;
+  return mergeCurrentUserIntoProfile(currentUserFallback, user);
 };
 
 export const uploadOrganizerAvatar = async (file) => {
@@ -242,18 +208,11 @@ export const updateOrganizerProfile = async (profileData) => {
     },
   };
 
-  safeWriteStorage(finalPayload);
-
   try {
     const response = await apiClient.put("/api/profile", finalPayload);
     const serverProfile = response?.data?.data?.profile || finalPayload;
-    safeWriteStorage(mergeProfileResponse(serverProfile));
     return mergeProfileResponse(serverProfile);
   } catch (error) {
-    if (error?.status === 404 || error?.status === 405 || error?.status === 501) {
-      return finalPayload;
-    }
-
     throw normalizeError(error);
   }
 };

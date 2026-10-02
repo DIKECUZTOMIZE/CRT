@@ -187,10 +187,6 @@ export const useLoginPage = ({
         newPassword: password,
       });
 
-      if (typeof window !== "undefined") {
-        window.localStorage.removeItem("crt_auth_user");
-      }
-
       setResetStatus("done");
       setResetMessage(response?.message || "Password reset successfully. Please log in again.");
       setResetOtp("");

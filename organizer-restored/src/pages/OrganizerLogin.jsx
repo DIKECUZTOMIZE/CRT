@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router";
 import { useDispatch } from "react-redux";
 import { toast } from "sonner";
 
+import { API_BASE_URL } from "../app/config/axios.js";
 import { loginUser } from "../feature/Auth/state/auth.slice.js";
 import { isOrganizerRole } from "../app/utils/roleUtils.js";
 import { getRegisteredEmails, requestPasswordReset, resetPasswordWithOtp } from "../feature/Auth/api/auth.api.js";
@@ -223,19 +224,51 @@ const OrganizerLogin = () => {
     event.preventDefault();
     setError("");
     toast.dismiss();
+
+    const email = String(form.email || "").trim().toLowerCase();
+    const password = String(form.password || "").trim();
+
+    if (!email) {
+      const message = "Please enter your email address.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      const message = "Please enter a valid email address.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (!password) {
+      const message = "Please enter your password.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const user = await dispatch(loginUser(form)).unwrap();
+      const user = await dispatch(loginUser({ email, password })).unwrap();
 
-      if (!user || !isOrganizerRole(user.role)) {
+      if (!user || !isOrganizerRole(user)) {
         throw new Error("This account does not have organizer access");
       }
 
       toast.success("Organizer login successful");
       navigate("/organizer/dashboard", { replace: true });
     } catch (err) {
-      const message = err?.message || "Invalid organizer credentials";
+      const rawMessage = String(err?.message || "").trim();
+      const message = rawMessage.includes("Invalid email or password") || rawMessage.includes("not found") || rawMessage.includes("credentials")
+        ? "Invalid email or password. Please try again."
+        : rawMessage.includes("organizer access")
+          ? "This account does not have organizer access."
+          : rawMessage.includes("network") || rawMessage.includes("fetch") || rawMessage.includes("connection") || rawMessage.includes("ECONN")
+            ? "We couldn't sign you in right now. Please check your connection and try again."
+            : rawMessage || "Unable to sign in right now. Please try again.";
       setError(message);
       toast.error(message);
     } finally {
@@ -287,7 +320,7 @@ const OrganizerLogin = () => {
               <p className="mt-2 text-sm text-slate-400">Manage your events and community</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="relative space-y-5 pr-2 lg:max-h-[75vh] lg:overflow-y-auto lg:overscroll-contain lg:scroll-smooth scrollbar-thin scrollbar-track-slate-900 scrollbar-thumb-emerald-500/40">
+            <form noValidate onSubmit={handleSubmit} className="relative space-y-5 pr-2 lg:max-h-[75vh] lg:overflow-y-auto lg:overscroll-contain lg:scroll-smooth scrollbar-thin scrollbar-track-slate-900 scrollbar-thumb-emerald-500/40">
               <label className="block text-sm font-medium text-slate-300">
                 Email
                 <input
@@ -486,6 +519,31 @@ const OrganizerLogin = () => {
                 className="h-12 w-full rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-500 font-bold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:brightness-110 disabled:opacity-60"
               >
                 {loading ? "Signing in..." : "Sign in"}
+              </button>
+
+              <div className="relative my-2">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-700" />
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-slate-900/80 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">or</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = `${API_BASE_URL}/api/auth/google/login?portal=organizer`;
+                }}
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-950/70 font-semibold text-slate-100 transition hover:border-emerald-500 hover:text-emerald-300"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+                  <path fill="#EA4335" d="M12 10.2v3.9h5.4c-.2 1.3-1.5 3.9-5.4 3.9-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.2.8 3.9 1.5l2.7-2.6C16.8 3.3 14.7 2.4 12 2.4 6.9 2.4 2.8 6.5 2.8 11.6S6.9 20.8 12 20.8c6.9 0 11.5-4.8 11.5-11.6 0-.8-.1-1.5-.2-2.2H12z" />
+                  <path fill="#34A853" d="M3.7 7.2l3.4 2.5c.9-1.7 2.8-2.9 4.9-2.9 1.9 0 3.2.8 3.9 1.5l2.7-2.6C16.8 3.3 14.7 2.4 12 2.4 8.1 2.4 4.7 4.9 3.7 7.2z" />
+                  <path fill="#FBBC05" d="M3.7 16.1c1 2.3 3.2 4.1 8.3 4.1 2.5 0 4.6-.9 6.1-2.5l-2.9-2.3c-.9.6-2.1 1.1-3.2 1.1-2.4 0-4.5-1.6-5.1-3.8l-3.2 2.4z" />
+                  <path fill="#4285F4" d="M12 20.8c2.7 0 4.9-.9 6.6-2.4l-3.1-2.4c-.8.5-1.9.9-3.5.9-2.8 0-5.2-1.9-5.9-4.4l-3.2 2.5c1.5 3.4 4.9 5.8 9.1 5.8z" />
+                </svg>
+                Continue with Google
               </button>
             </form>
 

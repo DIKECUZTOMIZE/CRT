@@ -4,7 +4,8 @@ import { useSelector } from "react-redux";
 import { Toaster } from "sonner";
 
 import { SeoManager } from "../seo/SeoManager";
-import { getRoleHomePath, normalizeRole } from "../utils/roleUtils";
+import AuthBootstrap from "../store/AuthBootstrap";
+import { getEffectiveRole, getPortalBaseUrl, getRoleHomePath, normalizeRole } from "../utils/roleUtils";
 
 // Public Pages
 import Home from "../../feature/Home/page/ui/Home";
@@ -70,23 +71,25 @@ const AuthRedirectRoute = ({ children }) => {
   const { status, user } = useSelector((state) => state.auth);
 
   if (status === "authenticated" && user) {
-    const role = normalizeRole(user.role);
+    const effectiveRole = getEffectiveRole(user);
 
-    if (role === "ADMIN") {
-      if (typeof window !== "undefined" && !window.location.href.startsWith("https://admin.crtcompete.com/")) {
-        window.location.assign("https://admin.crtcompete.com/admin/dashboard");
+    if (effectiveRole === "ADMIN") {
+      const adminUrl = getPortalBaseUrl("ADMIN");
+      if (typeof window !== "undefined" && !window.location.href.startsWith(new URL(adminUrl).origin)) {
+        window.location.assign(adminUrl);
       }
       return null;
     }
 
-    if (role === "ORGANIZER") {
-      if (typeof window !== "undefined" && !window.location.href.startsWith("https://organizer.crtcompete.com/")) {
-        window.location.assign("https://organizer.crtcompete.com/organizer/dashboard");
+    if (effectiveRole === "ORGANIZER") {
+      const organizerUrl = getPortalBaseUrl("ORGANIZER");
+      if (typeof window !== "undefined" && !window.location.href.startsWith(new URL(organizerUrl).origin)) {
+        window.location.assign(organizerUrl);
       }
       return null;
     }
 
-    return <Navigate to={getRoleHomePath(role)} replace />;
+    return <Navigate to={getRoleHomePath(user)} replace />;
   }
 
   return children;
@@ -101,7 +104,11 @@ const AppRoutes = () => {
     */
 
     {
-      element: <RouteSeoShell />,
+      element: (
+        <AuthBootstrap>
+          <RouteSeoShell />
+        </AuthBootstrap>
+      ),
       children: [
         {
           element: <PublicLayout />,

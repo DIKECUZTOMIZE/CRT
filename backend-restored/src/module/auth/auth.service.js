@@ -256,7 +256,8 @@ export const resetPasswordWithOtpService = async (
 
 export const registerUserService = async (
     { username, email, password },
-    role = ROLES.USER
+    role = ROLES.USER,
+    roles = []
 ) => {
     const normalizedUsername = String(username ?? "").trim();
     const normalizedEmail = String(email ?? "").trim().toLowerCase();
@@ -273,11 +274,15 @@ export const registerUserService = async (
         email: normalizedEmail,
         password,
         role,
+        roles: Array.isArray(roles) && roles.length ? roles : undefined,
     });
 
-    const accessToken = token.generateAccessToken(user._id, user.role);
+    const normalizedRoles = Array.isArray(roles) && roles.length
+        ? roles
+        : [role || user.role || ROLES.USER];
+    const accessToken = token.generateAccessToken(user._id, user.role || role || ROLES.USER, normalizedRoles);
 
-    const refreshToken = token.generateRefreshToken(user._id, user.role);
+    const refreshToken = token.generateRefreshToken(user._id, user.role || role || ROLES.USER, normalizedRoles);
 
     await sessionDao.createSession({
         userId: user._id,
@@ -293,21 +298,33 @@ export const registerUserService = async (
     };
 };
 
-export const buildUserPayload = (user) => ({
-    id: user._id,
-    username: user.username,
-    email: user.email,
-    role: user.role || ROLES.USER,
-    roleTitle: user.roleTitle || "",
-    fullName: user.fullName || "",
-    avatar: user.avatar || user.profileImage || user.picture || user.image || "",
-    phone: user.phone || "",
-    address: user.address || "",
-    city: user.address || "",
-    organizationName: user.organizationName || "",
-    website: user.website || "",
-    bio: user.bio || "",
-});
+export const buildUserPayload = (user) => {
+    const normalizedRoles = Array.isArray(user.roles)
+        ? user.roles
+        : Array.isArray(user.role)
+            ? user.role
+            : [user.role || ROLES.USER];
+
+    const orderedRoles = [...new Set(normalizedRoles.map((role) => String(role ?? "").trim().toUpperCase()).filter(Boolean))];
+    const primaryRole = orderedRoles[0] || String(user.role ?? "").trim().toUpperCase() || ROLES.USER;
+
+    return {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: primaryRole,
+        roles: orderedRoles,
+        roleTitle: user.roleTitle || "",
+        fullName: user.fullName || "",
+        avatar: user.avatar || user.profileImage || user.picture || user.image || "",
+        phone: user.phone || "",
+        address: user.address || "",
+        city: user.address || "",
+        organizationName: user.organizationName || "",
+        website: user.website || "",
+        bio: user.bio || "",
+    };
+};
 
 const createSessionForUser = async (userId, refreshToken) => {
     const session = await sessionDao.updateSessionByUserId(userId, { refreshToken });
@@ -325,8 +342,12 @@ export const googleLoginService = async ({ user }) => {
         throw new AppError("Google user is required", 400);
     }
 
-    const accessToken = token.generateAccessToken(user._id, user.role || ROLES.USER);
-    const refreshToken = token.generateRefreshToken(user._id, user.role || ROLES.USER);
+    const roles = Array.isArray(user.roles) && user.roles.length
+        ? user.roles
+        : [user.role || ROLES.USER];
+
+    const accessToken = token.generateAccessToken(user._id, user.role || roles[0], roles);
+    const refreshToken = token.generateRefreshToken(user._id, user.role || roles[0], roles);
 
     await createSessionForUser(user._id, refreshToken);
 
@@ -351,15 +372,17 @@ export const loginUserService = async ({ email, password }) => {
         throw new UnauthorizedError("Invalid email or password");
     }
 
-    const role = user.role || ROLES.USER;
-    const normalizedRole = String(role).trim().toUpperCase();
+    const roles = Array.isArray(user.roles) && user.roles.length
+        ? user.roles
+        : [user.role || ROLES.USER];
+    const normalizedRole = String(user.role || roles[0] || ROLES.USER).trim().toUpperCase();
 
     if (!Object.values(ROLES).includes(normalizedRole)) {
         throw new UnauthorizedError("Invalid user role");
     }
 
-    const accessToken = token.generateAccessToken(user._id, normalizedRole);
-    const refreshToken = token.generateRefreshToken(user._id, normalizedRole);
+    const accessToken = token.generateAccessToken(user._id, normalizedRole, roles);
+    const refreshToken = token.generateRefreshToken(user._id, normalizedRole, roles);
 
     await createSessionForUser(user._id, refreshToken);
 
@@ -413,8 +436,14 @@ export const refreshService = async (refreshToken) => {
             throw new UnauthorizedError("Invalid refresh token");
         }
 
-        const newAccessToken = token.generateAccessToken(decoded.sub, decoded.role);
-        const newRefreshToken = token.generateRefreshToken(decoded.sub, decoded.role);
+        const user = await UserModel.findById(decoded.sub).lean();
+        const roles = Array.isArray(user?.roles) && user.roles.length
+            ? user.roles
+            : [user?.role || decoded.role || ROLES.USER];
+        const primaryRole = String(decoded.role || user?.role || roles[0] || ROLES.USER).trim().toUpperCase();
+
+        const newAccessToken = token.generateAccessToken(decoded.sub, primaryRole, roles);
+        const newRefreshToken = token.generateRefreshToken(decoded.sub, primaryRole, roles);
 
         await sessionDao.updateSessionByUserId(decoded.sub, {
             refreshToken: newRefreshToken,
@@ -433,6 +462,22 @@ export const refreshService = async (refreshToken) => {
     }
 };
 
+const normalizeUserLocation = (value = {}) => {
+    const source = value && typeof value === "object" ? value : {};
+    const nextCountry = String(source.country || "India").trim() || "India";
+    const nextState = String(source.state || "India").trim() || "India";
+    const nextCity = String(source.city || "All India").trim() || "All India";
+    const nextDistrict = String(source.district || "").trim();
+
+    return {
+        country: nextCountry,
+        state: nextState === "India" ? "India" : nextState,
+        city: nextCity && nextCity !== "India" ? nextCity : "All India",
+        district: nextDistrict,
+        isSelected: nextState !== "India" || nextCity !== "All India",
+    };
+};
+
 export const getCurrentUserService = async (userId) => {
     const user = await userDao.getUserById(userId);
 
@@ -440,11 +485,18 @@ export const getCurrentUserService = async (userId) => {
         throw new UnauthorizedError("Session invalid or user no longer exists");
     }
 
+    const roles = Array.isArray(user.roles) && user.roles.length
+        ? user.roles
+        : [user.role || ROLES.USER];
+    const primaryRole = String(user.role || roles[0] || ROLES.USER).trim().toUpperCase();
+    const location = normalizeUserLocation(user.location || {});
+
     return {
         id: user._id,
         username: user.username,
         email: user.email,
-        role: user.role || ROLES.USER,
+        role: primaryRole,
+        roles,
         roleTitle: user.roleTitle || "",
         fullName: user.fullName || "",
         phone: user.phone || "",
@@ -454,6 +506,7 @@ export const getCurrentUserService = async (userId) => {
         website: user.website || "",
         address: user.address || "",
         city: user.address || "",
+        location,
         bio: user.bio || "",
         isVerified: Boolean(user.isVerified),
         kycStatus: user.kycStatus || "",
@@ -473,18 +526,27 @@ export const updateCurrentUserService = async (userId, payload = {}) => {
         throw new UnauthorizedError("Session invalid or user no longer exists");
     }
 
-    const nextEmail = String(payload?.email || user.email || "").trim().toLowerCase();
-    const nextFullName = String(payload?.fullName || user.fullName || "").trim();
-    const nextRoleTitle = String(payload?.roleTitle || user.roleTitle || "").trim();
-    const nextPhone = String(payload?.phone || user.phone || "").trim();
-    const nextAddress = String(payload?.address || payload?.city || user.address || "").trim();
-    const nextAvatar = String(payload?.avatar || user.avatar || "").trim();
+    const isLocationOnlyUpdate = Boolean(
+        payload &&
+        Object.prototype.hasOwnProperty.call(payload, "location") &&
+        Object.keys(payload).length === 1
+    );
+
+    const nextEmail = String(payload?.email ?? user.email ?? "").trim().toLowerCase();
+    const nextFullName = String(payload?.fullName ?? user.fullName ?? "").trim();
+    const nextRoleTitle = String(payload?.roleTitle ?? user.roleTitle ?? "").trim();
+    const nextPhone = String(payload?.phone ?? user.phone ?? "").trim();
+    const nextAddress = String(payload?.address ?? payload?.city ?? user.address ?? "").trim();
+    const nextAvatar = String(payload?.avatar ?? user.avatar ?? "").trim();
+    const nextLocation = payload && Object.prototype.hasOwnProperty.call(payload, "location")
+        ? normalizeUserLocation(payload.location)
+        : normalizeUserLocation(user.location || {});
 
     if (!nextEmail) {
         throw new AppError("Email is required", 400);
     }
 
-    if (!nextFullName) {
+    if (!nextFullName && !isLocationOnlyUpdate) {
         throw new AppError("Full name is required", 400);
     }
 
@@ -499,6 +561,7 @@ export const updateCurrentUserService = async (userId, payload = {}) => {
     user.phone = nextPhone;
     user.address = nextAddress;
     user.avatar = nextAvatar;
+    user.location = nextLocation;
 
     await user.save();
 
@@ -559,8 +622,83 @@ export const toggleSavedEventService = async (userId, eventId) => {
     };
 };
 
+const normalizeUserRoles = (user = {}) => {
+    const rawRoles = Array.isArray(user.roles)
+        ? user.roles
+        : [];
+    const rawRole = user.role;
+
+    const normalized = [...rawRoles, rawRole]
+        .flatMap((entry) => Array.isArray(entry) ? entry : [entry])
+        .map((entry) => String(entry ?? "").trim().toUpperCase())
+        .filter(Boolean)
+        .filter((entry) => Object.values(ROLES).includes(entry));
+
+    return [...new Set(normalized)];
+};
+
+const getNormalizedUserRoles = (user = {}) => {
+    const candidateRoles = [
+        user.roles,
+        user.role,
+    ];
+
+    const normalizedRoles = candidateRoles
+        .flatMap((entry) => Array.isArray(entry) ? entry : [entry])
+        .map((entry) => String(entry ?? "").trim().toUpperCase())
+        .filter(Boolean)
+        .filter((entry) => Object.values(ROLES).includes(entry));
+
+    return [...new Set(normalizedRoles)];
+};
+
+export const verifyOrganizerAccess = async (userId) => {
+    const user = await userDao.getUserById(userId);
+
+    if (!user) {
+        throw new NotFoundError("User not found");
+    }
+
+    const userData = user.toObject ? user.toObject() : user;
+    const roles = getNormalizedUserRoles(userData);
+
+    if (!roles.includes(ROLES.ORGANIZER)) {
+        throw new AppError("Organizer access required", 403);
+    }
+
+    return { authorized: true };
+};
+
+export const assertOrganizerAccess = async (userId) => verifyOrganizerAccess(userId);
+
+export const organizerHandoffService = async (userId) => {
+    const user = await userDao.getUserById(userId);
+
+    if (!user) {
+        throw new NotFoundError("User not found");
+    }
+
+    const normalizedRoles = getNormalizedUserRoles(user);
+
+    if (!normalizedRoles.includes(ROLES.ORGANIZER)) {
+        throw new AppError("Organizer access required", 403);
+    }
+
+    const accessToken = token.generateAccessToken(user._id, ROLES.ORGANIZER, normalizedRoles);
+    const refreshToken = token.generateRefreshToken(user._id, ROLES.ORGANIZER, normalizedRoles);
+
+    await createSessionForUser(user._id, refreshToken);
+
+    return {
+        user: buildUserPayload(user),
+        accessToken,
+        refreshToken,
+        authorized: true,
+    };
+};
+
 export const registerOrganizerService = (data) =>
-    registerUserService(data, ROLES.ORGANIZER);
+    registerUserService(data, ROLES.USER, [ROLES.USER, ROLES.ORGANIZER]);
 
 export const registerAdminService = async ({ registrationKey, ...data }) => {
     if (!env.ADMIN_REGISTRATION_KEY) {

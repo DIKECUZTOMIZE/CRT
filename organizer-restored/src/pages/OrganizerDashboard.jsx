@@ -35,7 +35,7 @@ const OrganizerDashboard = () => {
         </button>
       </div>
 
-      <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (
           <div
             key={stat.label}
@@ -120,8 +120,13 @@ const OrganizerDashboard = () => {
                     </div>
                   </div>
 
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800 text-slate-300">
-                    <ArrowRight className="h-4 w-4" />
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-emerald-300 sm:hidden">
+                      Open
+                    </span>
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800 text-slate-300">
+                      <ArrowRight className="h-4 w-4" />
+                    </div>
                   </div>
                 </div>
               </div>

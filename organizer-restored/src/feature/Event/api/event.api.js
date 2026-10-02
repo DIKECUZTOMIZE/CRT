@@ -18,6 +18,15 @@ export const updateOrganizerEvent = async (eventId, eventData) => {
   }
 };
 
+export const completeOrganizerEvent = async (eventId) => {
+  try {
+    const response = await apiClient.post(`${API_ENDPOINTS.events}/${eventId}/complete`);
+    return response.data;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+};
+
 export const deleteOrganizerEvent = async (eventId) => {
   try {
     const response = await apiClient.delete(`${API_ENDPOINTS.events}/${eventId}`);

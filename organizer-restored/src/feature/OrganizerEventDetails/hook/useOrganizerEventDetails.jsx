@@ -144,6 +144,7 @@ const normalizeEventDetail = (event) => {
     id: event._id || event.id,
     title: event.title || "Untitled Event",
     status: normalizedStatus,
+    completionConfirmedAt: event?.completionConfirmedAt ?? null,
     statusReason: event.statusReason || "",
     category: event.category || "General",
     mode: event.eventMode || "Offline",

@@ -89,7 +89,7 @@ export const RightPanel = ({
 
       {/* CARDS GRID */}
       {isLoading ? (
-        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, index) => (
             <div
               key={index}
@@ -104,7 +104,7 @@ export const RightPanel = ({
           ))}
         </div>
       ) : displayCompetitions.length > 0 ? (
-        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {displayCompetitions.map((item, index) => {
             const itemId = item?.id ?? item?._id;
             const normalizedItemId = String(itemId ?? "");

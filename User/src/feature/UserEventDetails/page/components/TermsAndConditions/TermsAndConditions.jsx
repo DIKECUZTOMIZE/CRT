@@ -36,14 +36,14 @@ export const TermsAndConditions = ({
 
           return (
             <div key={idx} className="check-row">
-              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400/80" />
+              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
               <div className="space-y-0.5">
                 {label && (
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-300">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
                     {label}
                   </p>
                 )}
-                <p className="text-xs leading-relaxed text-slate-300">{ruleText}</p>
+                <p className="text-xs leading-relaxed text-slate-700">{ruleText}</p>
               </div>
             </div>
           );

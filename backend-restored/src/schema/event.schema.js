@@ -42,6 +42,27 @@ const prizeSchema = z.object({
     reward: optionalText(300),
 });
 
+const resultEntrySchema = z.object({
+    participation: optionalText(40).default("Solo"),
+    participationType: optionalText(40).default("Solo"),
+    position: z.string().trim().min(1).max(80).default("1st"),
+    name: optionalText(150).default(""),
+    winnerName: optionalText(150).default(""),
+}).strict().transform((entry) => {
+    const participation = (entry.participation ?? entry.participationType ?? "Solo").trim() || "Solo";
+    const position = (entry.position ?? "1st").trim() || "1st";
+    const name = (entry.name ?? entry.winnerName ?? "").trim();
+
+    return {
+        ...entry,
+        participation,
+        participationType: participation,
+        position,
+        name,
+        winnerName: name,
+    };
+});
+
 const ruleSchema = z.object({
     type: optionalText(80),
     text: optionalText(500),
@@ -124,6 +145,7 @@ const eventBaseSchema = z.object({
     participation: participationSchema.optional(),
     totalPrizePool: optionalNumber,
     prizes: z.array(prizeSchema).max(50).default([]),
+    results: z.array(resultEntrySchema).max(50).default([]),
     eventRules: z.array(ruleSchema).max(100).default([]),
     securityRequirements: z.array(ruleSchema).max(100).default([]),
     participationSteps: z
@@ -139,6 +161,7 @@ const eventBaseSchema = z.object({
         })
         .optional(),
     status: statusSchema,
+    completionConfirmedAt: optionalDate,
     statusReason: optionalText(500),
 }).strict();
 
@@ -146,8 +169,14 @@ export const createEventSchema = z.object({
     body: eventBaseSchema,
 });
 
+const updateEventBaseSchema = eventBaseSchema
+    .omit({ results: true })
+    .extend({
+        results: z.array(resultEntrySchema).max(50).optional(),
+    });
+
 export const updateEventSchema = z.object({
-    body: eventBaseSchema.partial(),
+    body: updateEventBaseSchema.partial(),
     params: z.object({
         id: z.string().trim().min(1),
     }),

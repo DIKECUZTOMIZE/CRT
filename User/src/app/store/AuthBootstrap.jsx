@@ -1,9 +1,11 @@
 import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router";
 
 import { bootstrapAuth } from "../../feature/Auth/state/auth.slice.js";
-import { hasPortalAuthCookie } from "../../feature/Auth/state/sessionGuard.js";
-import { getRoleHomePath, normalizeRole } from "../utils/roleUtils";
+import { syncUserLocation } from "./location.slice.js";
+import { getEffectiveRole, getPortalBaseUrl, getRoleHomePath, normalizeRole } from "../utils/roleUtils";
+import { shouldBootstrapAuthForPath } from "./authBootstrapLogic.js";
 
 const PUBLIC_PATHS = new Set([
   "/",
@@ -20,21 +22,13 @@ const USER_PROFILE_PATHS = new Set(["/profile", "/user-profile"]);
 
 const AuthBootstrap = ({ children }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { status, user } = useSelector((state) => state.auth);
   const currentPath = typeof window !== "undefined" ? window.location.pathname : "/";
   const normalizedCurrentPath = currentPath === "/" ? "/" : currentPath.replace(/\/+$/, "") || "/";
   const isPublicRoute = PUBLIC_PATHS.has(normalizedCurrentPath);
   const hasBootstrappedRef = useRef(false);
-  const hasSavedSession = () => {
-    if (typeof window === "undefined") {
-      return false;
-    }
-
-    const storedUser = window.localStorage.getItem("crt_auth_user");
-    const hasStoredUser = Boolean(storedUser && storedUser !== "null");
-    return hasStoredUser || hasPortalAuthCookie("USER");
-  };
-  const shouldBootstrapAuth = hasSavedSession() || !isPublicRoute || AUTH_PATHS.has(normalizedCurrentPath);
+  const shouldBootstrapAuth = shouldBootstrapAuthForPath(normalizedCurrentPath, status);
 
   useEffect(() => {
     if (status === "idle" && shouldBootstrapAuth && !hasBootstrappedRef.current) {
@@ -48,6 +42,14 @@ const AuthBootstrap = ({ children }) => {
   }, [dispatch, shouldBootstrapAuth, status, normalizedCurrentPath]);
 
   useEffect(() => {
+    if (!user || !user.location) {
+      return;
+    }
+
+    dispatch(syncUserLocation(user.location));
+  }, [dispatch, user]);
+
+  useEffect(() => {
     if (status === "idle" || status === "loading") {
       return;
     }
@@ -56,54 +58,67 @@ const AuthBootstrap = ({ children }) => {
       return;
     }
 
-    const normalizedRole = normalizeRole(user.role);
+    const effectiveRole = getEffectiveRole(user);
+    const hasUserAccess = Array.isArray(user.roles)
+      ? user.roles.some((role) => normalizeRole(role) === "USER")
+      : effectiveRole === "USER";
 
-    if (normalizedRole !== "USER") {
-      if (typeof window !== "undefined") {
-        window.localStorage.removeItem("crt_auth_user");
-      }
-
-      if (normalizedRole === "ADMIN") {
-        if (typeof window !== "undefined" && !window.location.href.startsWith("https://admin.crtcompete.com/")) {
-          window.location.assign("https://admin.crtcompete.com/admin/dashboard");
+    if (!hasUserAccess) {
+      if (effectiveRole === "ADMIN") {
+        const adminUrl = getPortalBaseUrl("ADMIN");
+        if (typeof window !== "undefined" && !window.location.href.startsWith(new URL(adminUrl).origin)) {
+          window.location.assign(adminUrl);
         }
         return;
       }
 
-      if (normalizedRole === "ORGANIZER") {
-        if (typeof window !== "undefined" && !window.location.href.startsWith("https://organizer.crtcompete.com/")) {
-          window.location.assign("https://organizer.crtcompete.com/organizer/dashboard");
+      if (effectiveRole === "ORGANIZER") {
+        const organizerUrl = getPortalBaseUrl("ORGANIZER");
+        if (typeof window !== "undefined" && !window.location.href.startsWith(new URL(organizerUrl).origin)) {
+          window.location.assign(organizerUrl);
         }
         return;
       }
 
-      window.location.replace("/login");
+      if (normalizedCurrentPath !== "/login") {
+        navigate("/login", { replace: true });
+      }
       return;
     }
 
-    const redirectPath = getRoleHomePath(normalizedRole);
+    const redirectPath = getRoleHomePath(user);
 
     if (AUTH_PATHS.has(normalizedCurrentPath)) {
-      if (normalizedRole === "USER") {
-        window.location.replace("/profile");
+      if (effectiveRole === "USER") {
+        navigate("/profile", { replace: true });
+      } else if (redirectPath && redirectPath.startsWith("http")) {
+        window.location.assign(redirectPath);
       } else {
-        window.location.replace(redirectPath);
+        navigate(redirectPath, { replace: true });
       }
       return;
     }
 
-    if (USER_PROFILE_PATHS.has(normalizedCurrentPath) && normalizedRole !== "USER") {
-      window.location.replace(redirectPath);
+    if (USER_PROFILE_PATHS.has(normalizedCurrentPath) && effectiveRole !== "USER") {
+      if (redirectPath && redirectPath.startsWith("http")) {
+        window.location.assign(redirectPath);
+      } else {
+        navigate(redirectPath, { replace: true });
+      }
       return;
     }
 
-    if (normalizedCurrentPath === "/profile" && normalizedRole !== "USER") {
-      window.location.replace(redirectPath);
+    if (normalizedCurrentPath === "/profile" && effectiveRole !== "USER") {
+      if (redirectPath && redirectPath.startsWith("http")) {
+        window.location.assign(redirectPath);
+      } else {
+        navigate(redirectPath, { replace: true });
+      }
     }
   }, [normalizedCurrentPath, status, user]);
 
   const isAuthRoute = AUTH_PATHS.has(normalizedCurrentPath);
-  const shouldShowRestoreLoader = (status === "idle" || status === "loading") && hasSavedSession() && !isPublicRoute && !isAuthRoute && !user;
+  const shouldShowRestoreLoader = (status === "idle" || status === "loading") && !isPublicRoute && !isAuthRoute && !user;
 
   if (shouldShowRestoreLoader) {
     return (
@@ -116,4 +131,5 @@ const AuthBootstrap = ({ children }) => {
   return children;
 };
 
+export { shouldBootstrapAuthForPath };
 export default AuthBootstrap;

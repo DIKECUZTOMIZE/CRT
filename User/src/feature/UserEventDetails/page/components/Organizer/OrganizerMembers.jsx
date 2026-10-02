@@ -27,8 +27,8 @@ export const OrganizerMembers = ({ members = [], initialOpen = false }) => {
           return (
             <div key={idx} className="stack-item stack-item--row" title={`${name} • ${role}`}>
               <div className="min-w-0">
-                <p className="truncate text-xs font-bold text-slate-200">{name}</p>
-                <p className="mt-0.5 text-[9px] font-medium text-slate-400">{role}</p>
+                <p className="truncate text-xs font-bold text-slate-900">{name}</p>
+                <p className="mt-0.5 text-[9px] font-medium text-slate-500">{role}</p>
               </div>
 
               {phone && (

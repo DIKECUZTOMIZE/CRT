@@ -6,6 +6,7 @@ import {
     googleLoginController,
     loginUserController,
     logoutUserController,
+    organizerHandoffController,
     refreshTokenController,
     registerUserController,
     registerAdminController,
@@ -88,6 +89,12 @@ authRouter.get("/google/callback", googleCallbackController);
  * @public
  */
 authRouter.post("/logout", asyncHandle(logoutUserController));
+
+authRouter.post(
+    "/organizer-handoff",
+    authMiddleware,
+    asyncHandle(organizerHandoffController)
+);
 
 /**
  * Route for refreshing access token and refresh token.

@@ -11,6 +11,7 @@ import { useOrganizerEventDetails } from "./useOrganizerEventDetails.jsx";
 export const EVENT_TABS = [
   { id: "overview-section", label: "Overview" },
   { id: "prizes-section", label: "Prizes" },
+  { id: "results-section", label: "Winner" },
   { id: "how-to-join-section", label: "How To Join" },
   { id: "rules-section", label: "Rules" },
   { id: "organizer-section", label: "Organizer" },

@@ -9,12 +9,55 @@ import { logger } from "./src/config/logger.js";
 import UserModel from "./src/model/user.model.js";
 import setupSocket from "./src/socket/socket.server.js";
 import { connectRedis, closeRedis } from "./src/config/redis.js";
-import emailWorker from "./src/worker/email.worker.js";
-import { getPublicEventsService } from "./src/module/event/event.service.js";
+import emailWorker, { closeEmailWorker } from "./src/worker/email.worker.js";
+import { autoCompleteExpiredEvents, getPublicEventsService } from "./src/module/event/event.service.js";
 
 let server;
 let io;
 let isShuttingDown = false;
+let autoCompletionInterval = null;
+
+export const startAutoCompletionScheduler = ({ intervalMs = 30000, runNow = true } = {}) => {
+    if (typeof intervalMs !== "number" || Number.isNaN(intervalMs) || intervalMs <= 0) {
+        intervalMs = 30000;
+    }
+
+    if (autoCompletionInterval) {
+        logger.info({ intervalMs }, "Auto-completion scheduler already registered");
+        return autoCompletionInterval;
+    }
+
+    const sweep = async () => {
+        logger.info("Auto-completion sweep executed");
+
+        try {
+            const result = await autoCompleteExpiredEvents();
+            logger.info({ completed: result?.completed ?? 0 }, "Auto-completion sweep summary");
+
+            if ((result?.completed ?? 0) > 0) {
+                logger.info({ completed: result.completed }, "Expired events auto-completed");
+            }
+
+            return result;
+        } catch (error) {
+            logger.warn({ error }, "Periodic auto-completion sweep failed");
+            return { completed: 0, updatedEvents: [] };
+        }
+    };
+
+    logger.info({ intervalMs }, "Auto-completion scheduler started");
+
+    if (runNow) {
+        void sweep();
+    }
+
+    autoCompletionInterval = setInterval(() => {
+        void sweep();
+    }, intervalMs);
+
+    logger.info({ intervalMs }, "Auto-completion scheduler interval registered");
+    return autoCompletionInterval;
+};
 
 const DEFAULT_SEED_USERS = [
     {
@@ -70,6 +113,12 @@ const shutdown = async (signal) => {
 
     isShuttingDown = true;
 
+    if (autoCompletionInterval) {
+        clearInterval(autoCompletionInterval);
+        autoCompletionInterval = null;
+        logger.info("Auto-completion scheduler stopped");
+    }
+
     logger.info(
         { signal },
         "Shutdown signal received"
@@ -95,10 +144,13 @@ const shutdown = async (signal) => {
             io.close();
         }
 
-        // 3. Close Redis
+        // 3. Close email worker
+        await closeEmailWorker();
+
+        // 4. Close Redis
         await closeRedis();
 
-        // 4. Close MongoDB
+        // 5. Close MongoDB
         await closeDB();
 
         logger.info(
@@ -142,21 +194,34 @@ const startServer = async () => {
             logger.warn({ error }, "Public events cache warm-up skipped");
         }
 
-        // 5. Start email worker for queued reset emails
+        // 5. Run an immediate completion sweep for expired events
+        try {
+            const expiredCompletion = await autoCompleteExpiredEvents();
+            if (expiredCompletion.completed > 0) {
+                logger.info({ completed: expiredCompletion.completed }, "Expired events auto-completed at startup");
+            }
+        } catch (error) {
+            logger.warn({ error }, "Startup auto-completion sweep skipped");
+        }
+
+        // 6. Start periodic backend completion sweep for late/expired events
+        startAutoCompletionScheduler({ intervalMs: 30000, runNow: false });
+
+        // 7. Start email worker for queued reset emails
         if (emailWorker) {
             logger.info("Email worker started");
         }
 
-        // 6. Create Express application
+        // 8. Create Express application
         const app = createApp();
 
-        // 7. Create HTTP server
+        // 9. Create HTTP server
         server = http.createServer(app);
 
-        // 8. Setup Socket.IO
+        // 10. Setup Socket.IO
         io = setupSocket(server);
 
-        // 9. Start HTTP server
+        // 11. Start HTTP server
         server.listen(env.PORT, () => {
             logger.info(
                 {

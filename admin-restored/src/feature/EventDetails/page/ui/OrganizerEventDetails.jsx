@@ -57,6 +57,12 @@ export const OrganizerEventDetails = ({
   const [localStatusReason, setLocalStatusReason] = useState("");
   const [localUpdatingStatus, setLocalUpdatingStatus] = useState(false);
   const [localDeletingEvent, setLocalDeletingEvent] = useState(false);
+  const [resultFormOpen, setResultFormOpen] = useState(false);
+  const [resultEntries, setResultEntries] = useState([{ participation: "Solo", position: "", name: "" }]);
+  const [savingResult, setSavingResult] = useState(false);
+  const [completingEvent, setCompletingEvent] = useState(false);
+  const [completionConfirmOpen, setCompletionConfirmOpen] = useState(false);
+  const [completionPreviousStatus, setCompletionPreviousStatus] = useState("upcoming");
 
   const statusDraft = parentStatusDraft ?? localStatusDraft;
   const setStatusDraft = setParentStatusDraft ?? setLocalStatusDraft;
@@ -75,6 +81,26 @@ export const OrganizerEventDetails = ({
       }
     }
   }, [event?.status, event?.statusReason, parentStatusDraft, parentStatusReason]);
+
+  useEffect(() => {
+    if (!event) return;
+
+    const existingResults = Array.isArray(event.results) && event.results.length > 0 ? event.results : [];
+    const nextEntries = existingResults.length > 0
+      ? existingResults.map((entry) => ({
+          participation: String(entry?.participation ?? entry?.participationType ?? "Solo").trim() || "Solo",
+          position: String(entry?.position ?? "").trim(),
+          name: String(entry?.name ?? entry?.winnerName ?? "").trim(),
+        }))
+      : [{ participation: "Solo", position: "", name: "" }];
+
+    setResultEntries(nextEntries);
+  }, [event]);
+
+  const isOfficiallyCompleted = Boolean(event?.completionConfirmedAt) || (
+    String(event?.status || "").toLowerCase() === "completed" && Array.isArray(event?.results) && event.results.length > 0
+  );
+  const isCompleteActionAvailable = Boolean(event) && String(event?.status || "").toLowerCase() !== "completed";
 
   const handleBack = () => {
     if (onBack) {
@@ -134,6 +160,12 @@ export const OrganizerEventDetails = ({
 
     if (!id || !event || !statusDraft) return;
 
+    if (statusDraft === "completed") {
+      setCompletionPreviousStatus(event?.status || "upcoming");
+      setCompletionConfirmOpen(true);
+      return;
+    }
+
     const normalizedReason =
       statusDraft === "cancelled" || statusDraft === "postponed"
         ? (statusReason || "").trim()
@@ -146,12 +178,155 @@ export const OrganizerEventDetails = ({
 
     try {
       setLocalUpdatingStatus(true);
-      await refetch();
+      const payload = {
+        status: statusDraft,
+        statusReason: normalizedReason,
+      };
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}/api/events/${id}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.message || "Unable to update event status.");
+      }
+
+      if (refetch) {
+        await refetch();
+      }
       toast.success("Event status updated successfully.");
     } catch (updateError) {
       toast.error(updateError?.message || "Unable to update event status.");
     } finally {
       setLocalUpdatingStatus(false);
+    }
+  };
+
+  const handleCompleteSelection = (nextValue) => {
+    if (nextValue === "completed") {
+      setCompletionPreviousStatus(statusDraft || event?.status || "upcoming");
+      setStatusDraft("completed");
+      setCompletionConfirmOpen(true);
+      return;
+    }
+
+    setStatusDraft(nextValue);
+  };
+
+  const cancelCompletionConfirmation = () => {
+    setStatusDraft(completionPreviousStatus || event?.status || "upcoming");
+    setCompletionConfirmOpen(false);
+  };
+
+  const handleCompleteEvent = async () => {
+    if (!id || !event || !isCompleteActionAvailable) {
+      toast.error("This event is already completed.");
+      return;
+    }
+
+    try {
+      setCompletingEvent(true);
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}/api/events/${id}/complete`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.message || "Unable to complete the event.");
+      }
+
+      setCompletionConfirmOpen(false);
+      if (refetch) {
+        await refetch();
+      }
+      toast.success("Event marked as completed.");
+    } catch (completeError) {
+      toast.error(completeError?.message || "Unable to complete the event.");
+    } finally {
+      setCompletingEvent(false);
+    }
+  };
+
+  const handleResultEntryChange = (index, field, value) => {
+    setResultEntries((prev) => prev.map((entry, entryIndex) =>
+      entryIndex === index ? { ...entry, [field]: value } : entry
+    ));
+  };
+
+  const handleAddResultEntry = () => {
+    setResultEntries((prev) => [...prev, { participation: "Solo", position: "", name: "" }]);
+  };
+
+  const handleSaveResult = async () => {
+    if (!id || !isOfficiallyCompleted) {
+      toast.error("Results can only be saved after the event is finally completed.");
+      return;
+    }
+
+    const normalizedEntries = resultEntries
+      .map((entry) => ({
+        participation: String(entry?.participation ?? "Solo").trim() || "Solo",
+        position: String(entry?.position ?? "").trim(),
+        name: String(entry?.name ?? "").trim(),
+      }))
+      .filter((entry) => entry.position || entry.name || entry.participation);
+
+    if (normalizedEntries.length === 0) {
+      toast.error("Please add at least one result entry.");
+      return;
+    }
+
+    const hasEmptyValue = normalizedEntries.some((entry) => !entry.position || !entry.name);
+    if (hasEmptyValue) {
+      toast.error("Each result entry needs a position and a name.");
+      return;
+    }
+
+    try {
+      setSavingResult(true);
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}/api/events/${id}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          results: normalizedEntries.map((entry) => ({
+            participation: entry.participation,
+            participationType: entry.participation,
+            position: entry.position,
+            name: entry.name,
+            winnerName: entry.name,
+          })),
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.message || "Unable to save result.");
+      }
+
+      if (refetch) {
+        await refetch();
+      }
+      setResultFormOpen(false);
+      toast.success("Winner result saved successfully.");
+    } catch (saveError) {
+      toast.error(saveError?.message || "Unable to save result.");
+    } finally {
+      setSavingResult(false);
     }
   };
 
@@ -306,6 +481,33 @@ export const OrganizerEventDetails = ({
               {event.prizes?.length > 0 ? <PrizeSection prizes={event.prizes} /> : null}
             </div>
 
+            {isOfficiallyCompleted && Array.isArray(event.results) && event.results.length > 0 && (
+              <div id="results-section" className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5 shadow-xl">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400">Result</p>
+                    <h3 className="text-lg font-semibold text-white">Winner Announcement</h3>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {event.results.map((result, index) => (
+                    <div key={`${result.position || "winner"}-${index}`} className="rounded-xl border border-slate-700 bg-slate-900/80 p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-amber-300">
+                          {result.position || "Winner"}
+                        </span>
+                        <span className="text-[10px] uppercase tracking-[0.16em] text-slate-400">
+                          {result.participation || result.participationType || "Solo"}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-xl font-bold text-white">{result.name || result.winnerName || "Winner"}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <EntryFee entryFee={event.entryFee} />
 
             <div id="how-to-join-section">
@@ -365,13 +567,13 @@ export const OrganizerEventDetails = ({
 
                 <select
                   value={statusDraft}
-                  onChange={(event) => setStatusDraft(event.target.value)}
+                  onChange={(event) => handleCompleteSelection(event.target.value)}
                   className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 outline-none transition focus:border-emerald-500"
                 >
                   <option value="upcoming">Upcoming</option>
                   <option value="live">Live</option>
-                  <option value="completed">Completed</option>
                   <option value="ended">Ended</option>
+                  <option value="completed">Complete</option>
                   <option value="cancelled">Cancelled</option>
                   <option value="postponed">Postponed</option>
                 </select>
@@ -399,18 +601,95 @@ export const OrganizerEventDetails = ({
                 <button
                   type="button"
                   onClick={handleStatusUpdate}
-                  disabled={updatingStatus || !statusDraft}
+                  disabled={updatingStatus || !statusDraft || statusDraft === "completed"}
                   className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:border-emerald-500 hover:text-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                 >
                   {updatingStatus ? "Updating..." : "Update Status"}
                 </button>
-   <button
+
+                <button
                   type="button"
                   onClick={handleEditEvent}
                   className="w-full rounded-xl bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                 >
                   Edit in Form
                 </button>
+
+                {isOfficiallyCompleted && (
+                  <div className="space-y-3 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3">
+                    <button
+                      type="button"
+                      onClick={() => setResultFormOpen((prev) => !prev)}
+                      className="flex w-full items-center justify-between gap-2 rounded-xl border border-emerald-500/30 bg-slate-900/80 px-3 py-2 text-left text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300"
+                    >
+                      <span>Result Announcement</span>
+                      <span>{resultFormOpen ? "▼" : "▶"}</span>
+                    </button>
+
+                    {resultFormOpen && (
+                      <div className="space-y-3 pt-1">
+                        {resultEntries.map((entry, index) => (
+                          <div key={`${index}-${entry.participation || "solo"}`} className="space-y-2 rounded-xl border border-slate-700 bg-slate-950/70 p-3">
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                              Result Entry #{index + 1}
+                            </div>
+
+                            <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-400">
+                              Participation
+                            </label>
+                            <select
+                              value={entry.participation || "Solo"}
+                              onChange={(event) => handleResultEntryChange(index, "participation", event.target.value)}
+                              className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 outline-none transition focus:border-emerald-500"
+                            >
+                              <option value="Solo">Solo</option>
+                              <option value="Group">Group</option>
+                            </select>
+
+                            <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-400">
+                              Position
+                            </label>
+                            <input
+                              type="text"
+                              value={entry.position}
+                              onChange={(event) => handleResultEntryChange(index, "position", event.target.value)}
+                              placeholder="Enter position"
+                              className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 outline-none transition focus:border-emerald-500"
+                            />
+
+                            <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-400">
+                              Name
+                            </label>
+                            <input
+                              type="text"
+                              value={entry.name}
+                              onChange={(event) => handleResultEntryChange(index, "name", event.target.value)}
+                              placeholder="Enter participant or team name"
+                              className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 outline-none transition focus:border-emerald-500"
+                            />
+                          </div>
+                        ))}
+
+                        <button
+                          type="button"
+                          onClick={handleAddResultEntry}
+                          className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-semibold text-emerald-300 transition hover:border-emerald-500 hover:text-emerald-400"
+                        >
+                          + Add Result
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleSaveResult}
+                          disabled={savingResult}
+                          className="w-full rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {savingResult ? "Saving..." : "Announce Result"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <button
                   type="button"
@@ -424,7 +703,34 @@ export const OrganizerEventDetails = ({
               </div>
             </div>
 
-       
+            {completionConfirmOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+                <div className="w-full max-w-md rounded-2xl border border-amber-500/30 bg-slate-900 p-5 shadow-2xl">
+                  <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-amber-400">Warning</div>
+                  <p className="text-sm leading-6 text-slate-200">
+                    Warning: Completing this event is a final action. After completion, the Edit Form and normal Status Update will no longer be available.
+                  </p>
+                  <div className="mt-5 flex items-center justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={cancelCompletionConfirmation}
+                      className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-600 hover:text-white"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCompleteEvent}
+                      disabled={completingEvent}
+                      className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {completingEvent ? "Completing..." : "Yes, Complete"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div id="organizer-section">
               <OrganizerCard organizer={event.organizer} />
             </div>

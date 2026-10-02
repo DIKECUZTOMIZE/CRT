@@ -3,24 +3,39 @@ import { NotFoundError } from "../../shared/error/notFound.error.js";
 import UserModel from "../../model/user.model.js";
 
 export const normalizeAddressForStorage = (value = "") => {
+  const cleanPart = (part) => {
+    if (part === undefined || part === null) return "";
+
+    const normalized = String(part).trim();
+    if (!normalized) return "";
+
+    const lowered = normalized.toLowerCase();
+    if (lowered === "undefined" || lowered === "null") return "";
+
+    return normalized.replace(/\s+/g, " ");
+  };
+
+  const flattenAddressParts = (rawParts = []) => rawParts
+    .flatMap((part) => {
+      const cleaned = cleanPart(part);
+      if (!cleaned) return [];
+      return cleaned.split(",").map((segment) => cleanPart(segment)).filter(Boolean);
+    })
+    .filter(Boolean);
+
   if (!value) {
     return "";
   }
 
   if (typeof value === "string") {
-    return value.replace(/\s*,\s*/g, ", ").replace(/\s+/g, " ").trim();
+    return flattenAddressParts([value]).join(", ");
   }
 
   if (typeof value === "object") {
-    const parts = [value.address, value.city, value.state]
-      .filter((part) => part !== undefined && part !== null && String(part).trim())
-      .map((part) => String(part).trim())
-      .filter(Boolean);
-
-    return parts.join(", ");
+    return flattenAddressParts([value.address, value.city, value.state]).join(", ");
   }
 
-  return String(value).trim();
+  return flattenAddressParts([value]).join(", ");
 };
 
 const normalizeProfilePayload = (profileData = {}) => {

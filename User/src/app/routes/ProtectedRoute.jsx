@@ -1,41 +1,51 @@
-import { Navigate, Outlet, useLocation } from "react-router";
+import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 
-import { normalizeRole } from "../utils/roleUtils";
+import { getPortalBaseUrl, hasRoleAccess, normalizeRole } from "../utils/roleUtils";
 
 const redirectToCorrectPortal = (role) => {
     const normalized = normalizeRole(role);
 
-    if (normalized === "ADMIN") return "https://admin.crtcompete.com/admin/dashboard";
-    if (normalized === "ORGANIZER") return "https://organizer.crtcompete.com/organizer/dashboard";
+    if (normalized === "ADMIN") return getPortalBaseUrl("ADMIN");
+    if (normalized === "ORGANIZER") return getPortalBaseUrl("ORGANIZER");
 
     return "/login";
 };
 
 const ProtectedRoute = ({ allowedRoles, redirectTo = "/login", children }) => {
     const location = useLocation();
+    const navigate = useNavigate();
     const { status, user } = useSelector((state) => state.auth);
 
     if (status !== "authenticated" || !user) {
         return <Navigate to={redirectTo} replace state={{ from: location }} />;
     }
 
-    const normalizedRole = normalizeRole(user.role);
     const normalizedAllowedRoles = (allowedRoles ?? []).map(normalizeRole);
+    const hasAllowedAccess = normalizedAllowedRoles.length === 0
+      || normalizedAllowedRoles.some((role) => hasRoleAccess(user, role));
 
-    if (allowedRoles && !normalizedAllowedRoles.includes(normalizedRole)) {
+    if (!hasAllowedAccess) {
         if (typeof window !== "undefined") {
-            window.localStorage.removeItem("crt_auth_user");
-            window.location.replace(redirectToCorrectPortal(normalizedRole));
+            const redirectUrl = redirectToCorrectPortal(user.role);
+            if (redirectUrl.startsWith("http")) {
+                window.location.assign(redirectUrl);
+            } else {
+                navigate(redirectUrl, { replace: true });
+            }
         }
 
         return null;
     }
 
-    if (normalizedRole !== "USER") {
+    if (!hasRoleAccess(user, "USER")) {
         if (typeof window !== "undefined") {
-            window.localStorage.removeItem("crt_auth_user");
-            window.location.replace(redirectToCorrectPortal(normalizedRole));
+            const redirectUrl = redirectToCorrectPortal(user.role);
+            if (redirectUrl.startsWith("http")) {
+                window.location.assign(redirectUrl);
+            } else {
+                navigate(redirectUrl, { replace: true });
+            }
         }
         return null;
     }

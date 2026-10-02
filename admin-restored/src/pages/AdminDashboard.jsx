@@ -18,6 +18,7 @@ import {
 
 import { useAdminAuth } from "../feature/Auth/hooks/useAdminAuth.js";
 import { useAdminDashboard } from "../feature/Dashboard/hooks/useAdminDashboard.js";
+import { API_BASE_URL } from "../app/config/apiBase.js";
 import { AdminEventDetailsPage } from "../feature/EventDetails/index.js";
 import { eventStatusFilters, getEventSummary } from "../feature/EventList/index.js";
 import { UserList } from "../feature/UserList/index.js";
@@ -173,7 +174,7 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
 
     const loadEventDetails = async () => {
       try {
-        const response = await fetch(`http://localhost:3000/api/events/${eventId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/events/${eventId}`, {
           method: "GET",
           credentials: "include",
           headers: {
@@ -222,7 +223,7 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
     setSliderLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3000/api/home-slider/admin", {
+      const response = await fetch(`${API_BASE_URL}/api/home-slider/admin`, {
         method: "GET",
         credentials: "include",
         headers: {
@@ -253,7 +254,7 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
     files.forEach((file) => form.append("images", file));
 
     try {
-      const response = await fetch("http://localhost:3000/api/upload/images", {
+      const response = await fetch(`${API_BASE_URL}/api/upload/images`, {
         method: "POST",
         credentials: "include",
         body: form,
@@ -328,7 +329,7 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
     }
 
     try {
-      const response = await fetch("http://localhost:3000/api/home-slider/", {
+      const response = await fetch(`${API_BASE_URL}/api/home-slider/`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -367,7 +368,7 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
     if (!confirmed) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/home-slider/${slideId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/home-slider/${slideId}`, {
         method: "DELETE",
         credentials: "include",
         headers: {
@@ -447,7 +448,7 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
 
     try {
       setUpdatingStatus(true);
-      const response = await fetch(`http://localhost:3000/api/events/${eventId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/events/${eventId}`, {
         method: "PUT",
         credentials: "include",
         headers: {
@@ -490,7 +491,7 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
 
     try {
       setDeletingEvent(true);
-      const response = await fetch(`http://localhost:3000/api/events/${eventId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/events/${eventId}`, {
         method: "DELETE",
         credentials: "include",
         headers: {
@@ -597,7 +598,7 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
     if (!detailEvent) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/events/${eventId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/events/${eventId}`, {
         method: "GET",
         credentials: "include",
         headers: {
@@ -661,7 +662,7 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
     setUploadingProfileImage(true);
 
     try {
-      const response = await fetch("http://localhost:3000/api/upload/image", {
+      const response = await fetch(`${API_BASE_URL}/api/upload/image`, {
         method: "POST",
         credentials: "include",
         body: form,
@@ -720,7 +721,7 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
     setSavingProfile(true);
 
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/users/${adminId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/${adminId}`, {
         method: "PUT",
         credentials: "include",
         headers: {
@@ -993,7 +994,7 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
     formData.append("image", file);
 
     try {
-      const response = await fetch("http://localhost:3000/api/upload/image", {
+      const response = await fetch(`${API_BASE_URL}/api/upload/image`, {
         method: "POST",
         credentials: "include",
         body: formData,
@@ -1063,7 +1064,7 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
         status: resolveEditValue(detailEvent.status, "upcoming"),
       });
 
-      const response = await fetch(`http://localhost:3000/api/events/${eventId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/events/${eventId}`, {
         method: "PUT",
         credentials: "include",
         headers: {

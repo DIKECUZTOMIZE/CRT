@@ -1,6 +1,8 @@
 import React from "react";
 import { useParams } from "react-router";
-import { ArrowLeft, ChevronRight, Settings2, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronRight, Settings2, Sparkles, Trash2, Trophy } from "lucide-react";
+
+import DetailAccordion from "../../../../shared/components/ui/DetailAccordion";
 
 import { EventHero } from "../components/EventHero/EventHero.jsx";
 import { EventOverview } from "../components/EventOverview/EventOverview.jsx";
@@ -18,6 +20,7 @@ import { useOrganizerEventDetailsPage } from "../../hook/useOrganizerEventDetail
 const EVENT_TABS = [
   { id: "overview-section", label: "Overview" },
   { id: "prizes-section", label: "Prizes" },
+  { id: "results-section", label: "Winner" },
   { id: "how-to-join-section", label: "How To Join" },
   { id: "rules-section", label: "Rules" },
   { id: "organizer-section", label: "Organizer" },
@@ -42,10 +45,30 @@ export const OrganizerEventDetails = () => {
     handleBack,
     handleShare,
     handleStatusUpdate,
+    handleStatusConfirmation,
     handleEditEvent,
+    handleCompleteEvent,
+    cancelCompletionConfirmation,
+    handleSaveResult,
+    handleAddResultEntry,
+    handleRemoveResultEntry,
+    handleResultEntryChange,
     handleDeleteEvent,
+    isFinalCompleted,
+    isOfficiallyCompleted,
+    canFinalizeCompletion,
+    completingEvent,
+    completionConfirmOpen,
+    finalCancelWarningOpen,
+    setFinalCancelWarningOpen,
+    savingResult,
+    resultEntries,
+    resultFormOpen,
+    setResultFormOpen,
     scrollToSection,
   } = useOrganizerEventDetailsPage(id);
+
+  const showOfficialCompletionSection = Boolean(isFinalCompleted || isOfficiallyCompleted);
 
   if (loading) {
     return (
@@ -125,7 +148,7 @@ export const OrganizerEventDetails = () => {
           onShare={handleShare}
         />
 
-        <div className="sticky top-4 z-40 flex items-center gap-2 overflow-x-auto rounded-xl border border-slate-800/80 bg-slate-950/80 p-1.5 backdrop-blur-xl no-scrollbar">
+        <div className="sticky top-4 z-40 flex items-center gap-2 overflow-x-auto rounded-xl border border-slate-800/80 bg-slate-950/80 p-1.5 backdrop-blur-xl scrollbar-none no-scrollbar">
           {EVENT_TABS.map((tab) => (
             <button
               key={tab.id}
@@ -156,12 +179,96 @@ export const OrganizerEventDetails = () => {
               <PrizeSection prizes={event.prizes} />
             </div>
 
+            <div id="results-section">
+              <DetailAccordion
+                title="Winner"
+                icon={Trophy}
+                initialOpen={false}
+                viewLabel="View details"
+                hideLabel="Hide details"
+                iconClassName="panel-icon--emerald"
+                bodyClassName="panel-body--stacked"
+              >
+                <div className="rounded-2xl border border-emerald-500/20 bg-slate-900/90 p-3 shadow-xl sm:p-4">
+                  {Array.isArray(event.results) && event.results.length > 0 ? (
+                    <>
+                      <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-700/80 pb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300">
+                            <Trophy className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-400">Winner</p>
+                            <h3 className="text-lg font-semibold text-white">Winner Announcement</h3>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1">
+                          <Sparkles className="h-3 w-3 text-emerald-400" />
+                          <span className="text-[9px] font-extrabold uppercase tracking-[0.12em] text-emerald-300">
+                            {event.results.length} {event.results.length === 1 ? "Winner" : "Winners"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        {event.results.map((result, index) => (
+                          <div
+                            key={`${result?.position || 'winner'}-${result?.name || result?.winnerName || 'result'}-${index}`}
+                            className="rounded-xl border border-slate-700/80 bg-slate-950/70 p-3"
+                          >
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
+                                  <Trophy className="h-3.5 w-3.5" />
+                                </div>
+                                <div>
+                                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                                    {result?.position || `Position ${index + 1}`}
+                                  </p>
+                                  <p className="text-xs font-medium text-slate-300">
+                                    {result?.participation || result?.participationType || "Solo"}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            <p className="text-base font-bold text-white sm:text-lg">
+                              {result?.name || result?.winnerName || "Winner"}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-3 border-b border-slate-700/80 pb-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300">
+                          <Trophy className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-400">Winner</p>
+                          <h3 className="text-lg font-semibold text-white">Not Announced Yet</h3>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 rounded-xl border border-dashed border-slate-700 bg-slate-950/60 p-4 text-center">
+                        <p className="text-sm font-medium text-slate-300">
+                          Winner results will be published here after announcement.
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </DetailAccordion>
+            </div>
+
             <div id="how-to-join-section">
               <HowToJoin steps={event.howToJoin} />
             </div>
 
             <div id="rules-section">
-              <TermsAndConditions terms={event.terms} initialOpen={true} />
+              <TermsAndConditions terms={event.terms} initialOpen={false} />
             </div>
 
             {event.securityRequirements && event.securityRequirements.length > 0 && (
@@ -170,7 +277,7 @@ export const OrganizerEventDetails = () => {
                 title="Security & Compliance"
                 countLabel="Requirements"
                 toggleLabel="requirements"
-                initialOpen={true}
+                initialOpen={false}
               />
             )}
           </div>
@@ -200,77 +307,299 @@ export const OrganizerEventDetails = () => {
                 </div>
               )}
 
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-4 shadow-xl">
-              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-100">
-                <Settings2 className="h-4 w-4 text-emerald-400" />
-                Maintenance
+            <DetailAccordion
+              title="Maintenance"
+              icon={Settings2}
+              initialOpen={false}
+              viewLabel="View details"
+              hideLabel="Hide details"
+              iconClassName="panel-icon--emerald"
+              bodyClassName="panel-body--stacked"
+            >
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-4 shadow-xl">
+                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-100">
+                  <Settings2 className="h-4 w-4 text-emerald-400" />
+                  Maintenance
+                </div>
+
+                <div className="space-y-3">
+                  <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-400">
+                    Event Status
+                  </label>
+
+                  <select
+                    value={statusDraft}
+                    onChange={(event) => setStatusDraft(event.target.value)}
+                    className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 outline-none transition focus:border-emerald-500"
+                  >
+                    <option value="upcoming">Upcoming</option>
+                    <option value="live">Live</option>
+                    <option value="completed">Completed</option>
+                    <option value="ended">Ended</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="postponed">Postponed</option>
+                  </select>
+
+                  {(statusDraft === "cancelled" || statusDraft === "postponed") && (
+                    <div className="space-y-2">
+                      <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-400">
+                        Reason
+                      </label>
+                      <textarea
+                        value={statusReason}
+                        onChange={(event) => setStatusReason(event.target.value)}
+                        rows={3}
+                        placeholder={
+                          statusDraft === "cancelled"
+                            ? "Enter cancellation reason"
+                            : "Enter postponement reason"
+                        }
+                        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-500"
+                      />
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleStatusUpdate}
+                    disabled={updatingStatus || !statusDraft}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:border-emerald-500 hover:text-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                  >
+                    {updatingStatus ? "Updating..." : "Update Status"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleEditEvent}
+                    className="w-full rounded-xl bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                  >
+                    Edit in Form
+                  </button>
+
+                  {completionConfirmOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+                      <div className="w-full max-w-md rounded-2xl border border-amber-500/30 bg-slate-900 p-5 shadow-2xl">
+                        <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-amber-400">
+                          {statusDraft === "completed" ? "Warning" : "Confirm Status"}
+                        </div>
+                        <p className="text-sm leading-6 text-slate-200">
+                          {statusDraft === "completed"
+                            ? "Warning: Completing this event is a final action. After completion, the Edit Form will no longer be available."
+                            : statusDraft === "cancelled"
+                              ? "Choose the type of cancellation for this event."
+                              : "This will mark the event as postponed. It is a normal status change, and the event will remain editable after confirmation."}
+                        </p>
+
+                        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                          {statusDraft === "cancelled" ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={cancelCompletionConfirmation}
+                                className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-600 hover:text-white"
+                              >
+                                Close
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleStatusConfirmation({ isFinalCancel: false })}
+                                disabled={updatingStatus}
+                                className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-semibold text-amber-300 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {updatingStatus ? "Updating..." : "Normal Cancel"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setFinalCancelWarningOpen(true)}
+                                disabled={updatingStatus}
+                                className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {updatingStatus ? "Updating..." : "Final Cancel"}
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={cancelCompletionConfirmation}
+                                className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-600 hover:text-white"
+                              >
+                                Close
+                              </button>
+                              <button
+                                type="button"
+                                onClick={statusDraft === "completed" ? handleCompleteEvent : handleStatusConfirmation}
+                                disabled={completingEvent || updatingStatus}
+                                className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {statusDraft === "completed"
+                                  ? (completingEvent ? "Completing..." : "Yes, Complete")
+                                  : (updatingStatus ? "Updating..." : "Yes, Continue")}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {finalCancelWarningOpen && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+                      <div className="w-full max-w-md rounded-2xl border border-rose-500/30 bg-slate-900 p-5 shadow-2xl">
+                        <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-rose-400">
+                          Final cancellation warning
+                        </div>
+                        <p className="text-sm leading-6 text-slate-200">
+                          This is a final cancellation for this event. If you click Yes, the event will be permanently cancelled and the status management and Edit Form will no longer be available.
+                        </p>
+
+                        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setFinalCancelWarningOpen(false)}
+                            className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-600 hover:text-white"
+                          >
+                            No
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const confirmed = await handleStatusConfirmation({ isFinalCancel: true });
+                              if (confirmed) {
+                                setFinalCancelWarningOpen(false);
+                              }
+                            }}
+                            disabled={updatingStatus}
+                            className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {updatingStatus ? "Updating..." : "Yes"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {showOfficialCompletionSection && (
+                    <div className="space-y-3 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3">
+                      <button
+                        type="button"
+                        onClick={() => setResultFormOpen((prev) => !prev)}
+                        className="flex w-full items-center justify-between gap-2 rounded-xl border border-emerald-500/30 bg-slate-900/80 px-3 py-2 text-left text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300"
+                      >
+                        <span>Result Announcement</span>
+                        <span>{resultFormOpen ? "▼" : "▶"}</span>
+                      </button>
+
+                      {resultFormOpen && (
+                        <div className="space-y-3 pt-1">
+                          {resultEntries.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-slate-700 bg-slate-950/70 p-3 text-sm text-slate-400">
+                              No result entries added yet.
+                            </div>
+                          ) : (
+                            resultEntries.map((entry, index) => (
+                              <div key={`${index}-${entry.participation || 'solo'}`} className="space-y-2 rounded-xl border border-slate-700 bg-slate-950/70 p-3">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                                    Result Entry #{index + 1}
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveResultEntry(index)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-rose-300 transition hover:border-rose-400 hover:bg-rose-500/15"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                    Remove
+                                  </button>
+                                </div>
+
+                                <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-400">
+                                  Participation
+                                </label>
+                                <select
+                                  value={entry.participation || "Solo"}
+                                  onChange={(event) => handleResultEntryChange(index, "participation", event.target.value)}
+                                  className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 outline-none transition focus:border-emerald-500"
+                                >
+                                  <option value="Solo">Solo</option>
+                                  <option value="Team">Team</option>
+                                  <option value="Other">Other</option>
+                                </select>
+
+                                {entry.participation === "Other" && (
+                                  <>
+                                    <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-400">
+                                      Custom Participation
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={entry.participationCustom || ""}
+                                      onChange={(event) => handleResultEntryChange(index, "participationCustom", event.target.value)}
+                                      placeholder="Enter custom participation type"
+                                      className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 outline-none transition focus:border-emerald-500"
+                                    />
+                                  </>
+                                )}
+
+                                <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-400">
+                                  Position
+                                </label>
+                                <input
+                                  type="text"
+                                  value={entry.position}
+                                  onChange={(event) => handleResultEntryChange(index, "position", event.target.value)}
+                                  placeholder="Enter position"
+                                  className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 outline-none transition focus:border-emerald-500"
+                                />
+
+                                <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-400">
+                                  Name
+                                </label>
+                                <input
+                                  type="text"
+                                  value={entry.name}
+                                  onChange={(event) => handleResultEntryChange(index, "name", event.target.value)}
+                                  placeholder="Enter participant or team name"
+                                  className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 outline-none transition focus:border-emerald-500"
+                                />
+                              </div>
+                            ))
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={handleAddResultEntry}
+                            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-semibold text-emerald-300 transition hover:border-emerald-500 hover:text-emerald-400"
+                          >
+                            + Add Result
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={handleSaveResult}
+                            disabled={savingResult}
+                            className="w-full rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {savingResult ? "Saving..." : "Announce Result"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleDeleteEvent}
+                    disabled={deletingEvent}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {deletingEvent ? "Deleting..." : "Delete Event"}
+                  </button>
+                </div>
               </div>
-
-              <div className="space-y-3">
-                <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-400">
-                  Event Status
-                </label>
-
-                <select
-                  value={statusDraft}
-                  onChange={(event) => setStatusDraft(event.target.value)}
-                  className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 outline-none transition focus:border-emerald-500"
-                >
-                  <option value="upcoming">Upcoming</option>
-                  <option value="live">Live</option>
-                  <option value="completed">Completed</option>
-                  <option value="ended">Ended</option>
-                  <option value="cancelled">Cancelled</option>
-                  <option value="postponed">Postponed</option>
-                </select>
-
-                {(statusDraft === "cancelled" || statusDraft === "postponed") && (
-                  <div className="space-y-2">
-                    <label className="block text-[11px] font-medium uppercase tracking-[0.12em] text-slate-400">
-                      Reason
-                    </label>
-                    <textarea
-                      value={statusReason}
-                      onChange={(event) => setStatusReason(event.target.value)}
-                      rows={3}
-                      placeholder={
-                        statusDraft === "cancelled"
-                          ? "Enter cancellation reason"
-                          : "Enter postponement reason"
-                      }
-                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-500"
-                    />
-                  </div>
-                )}
-
-              
-                <button
-                  type="button"
-                  onClick={handleStatusUpdate}
-                  disabled={updatingStatus || !statusDraft}
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:border-emerald-500 hover:text-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
-                >
-                  {updatingStatus ? "Updating..." : "Update Status"}
-                </button>
-   <button
-                  type="button"
-                  onClick={handleEditEvent}
-                  className="w-full rounded-xl bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
-                >
-                  Edit in Form
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleDeleteEvent}
-                  disabled={deletingEvent}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  {deletingEvent ? "Deleting..." : "Delete Event"}
-                </button>
-              </div>
-            </div>
+            </DetailAccordion>
 
        
             <div id="organizer-section">

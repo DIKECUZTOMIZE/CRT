@@ -6,6 +6,7 @@ import apiClient, { API_ENDPOINTS, normalizeError } from "../../../app/config/ax
 
 import { useHomeEvents } from "./useHomeEvents.jsx";
 import { getSavedEvents, toggleSavedEvent } from "../../UserProfile/api/userProfile.api.js";
+import { dedupeEventsById, dedupeHomeSections } from "../utils/homeSectionUtils.js";
 
 const isKnownBrokenUploadUrl = (value) => {
   if (!value) return false;
@@ -36,15 +37,15 @@ const fetchHomeSlides = async () => {
 const getMinEntryFee = (event) => {
   const entries = Array.isArray(event?.entries) ? event.entries.filter(Boolean) : [];
   const prices = entries
-    .map((entry) => Number(entry?.price ?? 0))
+    .map((entry) => Number(entry?.price ?? entry?.amount ?? entry?.entryFee ?? 0))
     .filter((price) => Number.isFinite(price));
 
   return prices.length ? Math.min(...prices) : 0;
 };
 
-const getPrizePool = (event) => Number(event?.totalPrizePool ?? 0) || 0;
 const getViewsCount = (event) => Number(event?.viewsCount ?? event?.viewCount ?? event?.impressions ?? 0) || 0;
 const getRatingValue = (event) => Number(event?.rating ?? event?.avgRating ?? 0) || 0;
+const getRatingsCount = (event) => Number(event?.ratingsCount ?? event?.ratingCount ?? event?.reviewCount ?? 0) || 0;
 
 const normalizeText = (value) => String(value ?? "").trim().toLowerCase();
 
@@ -78,8 +79,8 @@ const matchesQuickFilterByName = (event, filterName) => {
   if (filterName === "in-person") return mode.includes("offline") || mode.includes("in-person") || (!mode && !/online/i.test(event?.location || ""));
   if (filterName === "free") return entryFee === 0 || /free/i.test(String(event?.entryFee || ""));
   if (filterName === "upcoming") return status !== "completed" && status !== "closed";
-  if (filterName === "budget") return entryFee > 0 && entryFee <= 500;
-  if (filterName === "premium") return getPrizePool(event) >= 150000 || entryFee >= 1500;
+  if (filterName === "budget") return entryFee >= 0 && entryFee <= 50000;
+  if (filterName === "premium") return entryFee > 50000;
 
   return true;
 };
@@ -91,9 +92,19 @@ const byNewestFirst = (a, b) => {
 };
 
 const byPopularity = (a, b) => {
-  const aScore = getViewsCount(a) + (getRatingValue(a) * 1000) + (getPrizePool(a) * 0.2);
-  const bScore = getViewsCount(b) + (getRatingValue(b) * 1000) + (getPrizePool(b) * 0.2);
-  return bScore - aScore;
+  const aViews = getViewsCount(a);
+  const bViews = getViewsCount(b);
+  if (bViews !== aViews) return bViews - aViews;
+
+  const aRating = getRatingValue(a);
+  const bRating = getRatingValue(b);
+  if (bRating !== aRating) return bRating - aRating;
+
+  const aRatingsCount = getRatingsCount(a);
+  const bRatingsCount = getRatingsCount(b);
+  if (bRatingsCount !== aRatingsCount) return bRatingsCount - aRatingsCount;
+
+  return 0;
 };
 
 const byNearbyPriority = (a, b, city, state) => {
@@ -105,7 +116,7 @@ const byNearbyPriority = (a, b, city, state) => {
 };
 
 const byBudget = (a, b) => getMinEntryFee(a) - getMinEntryFee(b) || byPopularity(b, a);
-const byHighBudget = (a, b) => getPrizePool(b) - getPrizePool(a) || byPopularity(b, a);
+const byHighBudget = (a, b) => getMinEntryFee(b) - getMinEntryFee(a) || byPopularity(b, a);
 
 export const useHomePage = ({ initialLoginOpen = false, initialRegisterOpen = false } = {}) => {
   const location = useLocation();
@@ -114,12 +125,13 @@ export const useHomePage = ({ initialLoginOpen = false, initialRegisterOpen = fa
   const authStatus = useSelector((state) => state.auth.status);
   const currentLocation = useSelector((state) => state.location);
   const queryClient = useQueryClient();
+  const isLocalHomeBypass = import.meta.env.DEV && location.pathname === "/";
 
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeQuickFilter, setActiveQuickFilter] = useState(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(
-    Boolean(!authUser && (initialLoginOpen || initialRegisterOpen || ["/login", "/register"].includes(location.pathname)))
+    !isLocalHomeBypass && Boolean(!authUser && (initialLoginOpen || initialRegisterOpen || ["/login", "/register"].includes(location.pathname)))
   );
 
   useEffect(() => {
@@ -133,10 +145,15 @@ export const useHomePage = ({ initialLoginOpen = false, initialRegisterOpen = fa
   }, [location.search]);
 
   useEffect(() => {
+    if (isLocalHomeBypass) {
+      setIsAuthModalOpen(false);
+      return;
+    }
+
     if (!authUser) {
       setIsAuthModalOpen(Boolean(initialLoginOpen || initialRegisterOpen || ["/login", "/register"].includes(location.pathname)));
     }
-  }, [authUser, initialLoginOpen, initialRegisterOpen, location.pathname]);
+  }, [authUser, initialLoginOpen, initialRegisterOpen, isLocalHomeBypass, location.pathname]);
 
   const closeAuthModal = () => {
     setIsAuthModalOpen(false);
@@ -222,53 +239,58 @@ export const useHomePage = ({ initialLoginOpen = false, initialRegisterOpen = fa
     const userCity = currentLocation?.city && currentLocation.city !== "All India" ? currentLocation.city : "";
     const userState = currentLocation?.state && currentLocation.state !== "India" ? currentLocation.state : "";
 
-    const filteredEvents = safeEvents.filter((event) => {
-      const matchesCategory =
-        selectedCategory === "all" ||
-        event?.category?.toLowerCase() === selectedCategory.toLowerCase();
+    const filteredEvents = dedupeEventsById(
+      safeEvents.filter((event) => {
+        const matchesCategory =
+          selectedCategory === "all" ||
+          event?.category?.toLowerCase() === selectedCategory.toLowerCase();
 
-      const searchableText = [
-        event?.title,
-        event?.tagline,
-        event?.category,
-        event?.location,
-        event?.venueAddress,
-        event?.city,
-        event?.state,
-        event?.district,
-        event?.organizerName,
-        event?.organizer?.name,
-        event?.organizerContact?.name,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+        const searchableText = [
+          event?.title,
+          event?.tagline,
+          event?.category,
+          event?.location,
+          event?.venueAddress,
+          event?.city,
+          event?.state,
+          event?.district,
+          event?.organizerName,
+          event?.organizer?.name,
+          event?.organizerContact?.name,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
 
-      const matchesSearch =
-        !effectiveSearchQuery || searchableText.includes(effectiveSearchQuery.toLowerCase());
+        const matchesSearch =
+          !effectiveSearchQuery || searchableText.includes(effectiveSearchQuery.toLowerCase());
 
-      const matchesQuick = matchesQuickFilterByName(event, activeQuickFilter);
+        const matchesQuick = matchesQuickFilterByName(event, activeQuickFilter);
 
-      return matchesCategory && matchesSearch && matchesQuick;
-    });
+        return matchesCategory && matchesSearch && matchesQuick;
+      })
+    );
 
     const nearbyEvents = [...filteredEvents].sort((a, b) => byNearbyPriority(a, b, userCity, userState));
     const recentEvents = [...filteredEvents].sort(byNewestFirst);
     const popularEvents = [...filteredEvents].sort(byPopularity);
     const budgetEvents = [...filteredEvents]
-      .filter((event) => getMinEntryFee(event) <= 500)
+      .filter((event) => {
+        const minEntryFee = getMinEntryFee(event);
+        return minEntryFee >= 0 && minEntryFee <= 50000;
+      })
       .sort(byBudget);
     const highBudgetEvents = [...filteredEvents]
-      .filter((event) => getPrizePool(event) >= 150000 || getMinEntryFee(event) >= 1500)
+      .filter((event) => getMinEntryFee(event) > 50000)
       .sort(byHighBudget);
 
-    return {
-      popularCompetitions: popularEvents.slice(0, 8),
+    return dedupeHomeSections({
+      popularCompetitions: popularEvents,
       recentCompetitions: recentEvents.slice(0, 8),
       nearbyCompetitions: nearbyEvents.slice(0, 8),
       budgetFriendlyCompetitions: budgetEvents.slice(0, 8),
       highBudgetCompetitions: highBudgetEvents.slice(0, 8),
-    };
+    });
   }, [allEvents, selectedCategory, effectiveSearchQuery, activeQuickFilter, currentLocation?.city, currentLocation?.state]);
 
   const visibleHomeSections = [

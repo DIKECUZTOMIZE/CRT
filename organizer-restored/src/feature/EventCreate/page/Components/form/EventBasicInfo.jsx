@@ -173,7 +173,7 @@ export default function EventBasicInfo() {
                   {...register("eventStartTime", {
                     required: "Event start time is required",
                     pattern: {
-                      value: /^(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)$/i,
+                      value: /^(?:(?:0?[1-9]|1[0-2]):[0-5][0-9](?::[0-5][0-9])?\s?[AaPp][Mm]|(?:[01]?[0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9])?)$/,
                       message: "Use format like 09:30 AM",
                     },
                   })}
@@ -215,7 +215,7 @@ export default function EventBasicInfo() {
                   {...register("eventEndTime", {
                     required: "Event end time is required",
                     pattern: {
-                      value: /^(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)$/i,
+                      value: /^(?:(?:0?[1-9]|1[0-2]):[0-5][0-9](?::[0-5][0-9])?\s?[AaPp][Mm]|(?:[01]?[0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9])?)$/,
                       message: "Use format like 05:30 PM",
                     },
                   })}

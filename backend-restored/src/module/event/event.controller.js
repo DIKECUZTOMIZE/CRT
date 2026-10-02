@@ -2,6 +2,7 @@ import { StatusCodes } from "http-status-codes";
 
 import { getSocketServer } from "../../socket/socket.server.js";
 import {
+    completeEventService,
     createEventService,
     deleteEventService,
     getOrganizerEventByIdService,
@@ -167,6 +168,21 @@ export const updateEventController = async (req, res) => {
     return buildSuccessResponse(
         res,
         "Event updated successfully",
+        { event },
+        StatusCodes.OK
+    );
+};
+
+export const completeEventController = async (req, res) => {
+    const event = await completeEventService(req.user.sub, req.params.id, req.user.role);
+
+    if (!event) {
+        throw new NotFoundError("Event not found");
+    }
+
+    return buildSuccessResponse(
+        res,
+        "Event marked as completed",
         { event },
         StatusCodes.OK
     );

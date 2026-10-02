@@ -10,6 +10,9 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       injectRegister: "auto",
+      devOptions: {
+        enabled: false,
+      },
       manifestFilename: "site.webmanifest",
       includeAssets: ["favicon.svg", "og-image.svg"],
       workbox: {

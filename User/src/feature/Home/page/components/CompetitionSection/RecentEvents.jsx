@@ -3,7 +3,7 @@ import CompetitionSection from "./CompetitionSection";
 
 const RecentEvents = ({ competitions = [], savedIds = [], onToggleSave }) => (
   <CompetitionSection
-    title="Recently Added"
+    title="Recently"
     subtitle="Newly announced hackathons and developer contests"
     competitions={competitions}
     savedIds={savedIds}

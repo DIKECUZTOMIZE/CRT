@@ -7,6 +7,14 @@ const SOCKET_URL = import.meta.env.VITE_API_URL || (
     : DEFAULT_SOCKET_URL
 );
 
+const hasAuthCookie = () => {
+  if (typeof document === "undefined") {
+    return false;
+  }
+
+  return /(?:^|;\s*)(userAccessToken|organizerAccessToken|adminAccessToken)=/.test(document.cookie);
+};
+
 export const socket = io(SOCKET_URL, {
   withCredentials: true,
   transports: ["websocket", "polling"],
@@ -14,8 +22,31 @@ export const socket = io(SOCKET_URL, {
   reconnectionAttempts: 0,
   reconnectionDelay: 0,
   timeout: 3000,
-  autoConnect: true,
+  autoConnect: hasAuthCookie(),
 });
+
+export const connectSocketIfAuthenticated = () => {
+  if (!hasAuthCookie()) {
+    if (socket.connected) {
+      socket.disconnect();
+    }
+    return false;
+  }
+
+  if (!socket.connected) {
+    socket.connect();
+  }
+
+  return true;
+};
+
+export const joinUserRoom = () => {
+  if (!socket?.connected) {
+    return;
+  }
+
+  socket.emit("user:join", {});
+};
 
 export const emitLocationUpdate = (location) => {
   if (!location || typeof location !== "object") return;
@@ -61,5 +92,18 @@ export const listenToEventUpdates = (eventId, callback) => {
 
   return () => {
     socket.off("event:updated", handler);
+  };
+};
+
+export const listenToNotifications = (callback) => {
+  if (typeof callback !== "function") {
+    return () => {};
+  }
+
+  const handler = (payload) => callback(payload);
+  socket.on("notifications:updated", handler);
+
+  return () => {
+    socket.off("notifications:updated", handler);
   };
 };

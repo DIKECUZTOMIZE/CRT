@@ -274,6 +274,13 @@ const normalizeEventDetail = (event, currentUserId = null) => {
     },
     competitionDetails,
     prizes,
+    results: Array.isArray(event.results)
+      ? event.results.map((result) => ({
+          participationType: result?.participationType || "Solo",
+          position: result?.position || "1st",
+          winnerName: result?.winnerName || result?.name || "",
+        }))
+      : [],
     howToJoin: Array.isArray(event.participationSteps) && event.participationSteps.length > 0
       ? event.participationSteps.map((step) => ({ text: step.text || step }))
       : [],

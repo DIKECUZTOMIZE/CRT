@@ -11,6 +11,8 @@ import {
   Calendar,
 } from "lucide-react";
 
+import DetailAccordion from "../../../../../shared/components/ui/DetailAccordion";
+
 export const CompetitionDetails = ({ details }) => {
   if (!details || typeof details !== "object") return null;
 
@@ -154,27 +156,15 @@ export const CompetitionDetails = ({ details }) => {
 
   if (normalizedItems.length === 0) {
     return (
-      <section className="relative overflow-hidden rounded-2xl border border-dashed border-slate-700/80 bg-slate-900/80 p-4 shadow-xl backdrop-blur-xl sm:p-6">
-        <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-emerald-500/8 blur-3xl" />
-
-        <div className="relative flex items-center justify-between gap-4 border-b border-slate-800/80 pb-3">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
-              <Sparkles className="h-4 w-4" />
-            </div>
-            <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 sm:text-sm">
-                Competition Overview
-              </h3>
-              <p className="text-[11px] text-slate-400">More details will appear here</p>
-            </div>
-          </div>
-
-          <span className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-700 bg-slate-950/80 text-sm font-bold text-emerald-400">
-            +
-          </span>
-        </div>
-
+      <DetailAccordion
+        title="Competition Overview"
+        icon={Sparkles}
+        initialOpen={false}
+        viewLabel="View details"
+        hideLabel="Hide details"
+        iconClassName="panel-icon--emerald"
+        bodyClassName="panel-body--stacked"
+      >
         <div className="mt-4 rounded-xl border border-slate-800/80 bg-slate-950/60 px-3 py-4 text-center">
           <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
             <Sparkles className="h-4 w-4" />
@@ -184,32 +174,21 @@ export const CompetitionDetails = ({ details }) => {
             Organizer will add participation type, team size, format, mode, and more here.
           </p>
         </div>
-      </section>
+      </DetailAccordion>
     );
   }
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-900/90 p-4 shadow-2xl backdrop-blur-xl sm:p-6">
-      <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-emerald-500/10 blur-3xl" />
-
-      <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-800/80 pb-3 sm:mb-5 sm:pb-4">
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 sm:text-sm">
-              Competition Overview
-            </h3>
-          </div>
-          <p className="text-[11px] font-medium text-slate-400">
-            Eligibility, format & key participation info
-          </p>
-        </div>
-
-        <span className="rounded-full border border-slate-800 bg-slate-950/80 px-2.5 py-1 text-[10px] font-bold text-slate-400">
-          {normalizedItems.length} Specs
-        </span>
-      </div>
-
+    <DetailAccordion
+      title="Competition Overview"
+      badge={`${normalizedItems.length} Specs`}
+      icon={Sparkles}
+      initialOpen={false}
+      viewLabel="View details"
+      hideLabel="Hide details"
+      iconClassName="panel-icon--emerald"
+      bodyClassName="panel-body--stacked"
+    >
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {normalizedItems.map((item, index) => {
           const Icon = item.icon;
@@ -242,7 +221,7 @@ export const CompetitionDetails = ({ details }) => {
           );
         })}
       </div>
-    </section>
+    </DetailAccordion>
   );
 };
 

@@ -6,6 +6,60 @@ import { toast } from "sonner";
 
 import { registerOrganizerAccount } from "../feature/Auth/state/auth.slice.js";
 
+const strongPasswordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,128}$/;
+const passwordRequirementsMessage = "Password is too weak. Please use at least 12 characters with a mix of letters, numbers, and special characters.";
+
+const mapRegisterErrorToMessage = (error) => {
+  const rawMessage = String(error?.message || "").trim();
+  const status = Number(error?.status || 0);
+
+  if (!rawMessage && !status) {
+    return "We couldn't complete your registration right now. Please check your connection and try again.";
+  }
+
+  if (/username/i.test(rawMessage) && /already|exists|duplicate/i.test(rawMessage)) {
+    return "This username is already registered. Please choose a different username.";
+  }
+
+  if (/email/i.test(rawMessage) && /already|exists|duplicate|in use/i.test(rawMessage)) {
+    return "This email is already registered. Please use another email or sign in instead.";
+  }
+
+  if (/invalid email|email format|valid email/i.test(rawMessage)) {
+    return "Please enter a valid email address.";
+  }
+
+  if (/password.*(at least|12|uppercase|lowercase|number|special)|must include|too weak|weak password/i.test(rawMessage)) {
+    return passwordRequirementsMessage;
+  }
+
+  if (/network|timeout|fetch|failed to fetch|connection|ECONN|ERR_NETWORK|ENOTFOUND/i.test(rawMessage)) {
+    return "We couldn't complete your registration right now. Please check your connection and try again.";
+  }
+
+  if (status === 503 || /temporar|unavailable|service/i.test(rawMessage)) {
+    return "Registration is temporarily unavailable. Please try again in a moment.";
+  }
+
+  if (/username/i.test(rawMessage) && /required|empty/i.test(rawMessage)) {
+    return "Please enter your username.";
+  }
+
+  if (/email/i.test(rawMessage) && /required|empty/i.test(rawMessage)) {
+    return "Please enter your email address.";
+  }
+
+  if (/password/i.test(rawMessage) && /required|empty/i.test(rawMessage)) {
+    return "Please enter a password.";
+  }
+
+  if (/registration failed|request failed|failed/i.test(rawMessage)) {
+    return "We couldn't complete your registration right now. Please check your connection and try again.";
+  }
+
+  return rawMessage || "We couldn't complete your registration right now. Please check your connection and try again.";
+};
+
 const OrganizerRegister = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -40,19 +94,60 @@ const OrganizerRegister = () => {
     event.preventDefault();
     setError("");
     toast.dismiss();
+
+    const username = String(form.username || "").trim();
+    const email = String(form.email || "").trim().toLowerCase();
+    const password = String(form.password || "").trim();
+
+    if (!username) {
+      const message = "Please enter your username.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (!email) {
+      const message = "Please enter your email address.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      const message = "Please enter a valid email address.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (!password) {
+      const message = "Please enter a password.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (!strongPasswordPattern.test(password)) {
+      const message = passwordRequirementsMessage;
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const user = await dispatch(registerOrganizerAccount(form)).unwrap();
+      const user = await dispatch(registerOrganizerAccount({ username, email, password })).unwrap();
 
       if (!user) {
-        throw new Error("Organizer registration failed");
+        throw new Error("Registration failed");
       }
 
-      toast.success("Organizer account created successfully");
+      const successMessage = "Your organizer account has been created successfully.";
+      toast.success(successMessage);
       navigate("/organizer/dashboard", { replace: true });
     } catch (err) {
-      const message = err?.message || "Organizer registration failed";
+      const message = mapRegisterErrorToMessage(err);
       setError(message);
       toast.error(message);
     } finally {
@@ -99,7 +194,7 @@ const OrganizerRegister = () => {
               <h1 className="text-3xl font-black tracking-tight text-white">Create Organizer Account</h1>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form noValidate onSubmit={handleSubmit} className="space-y-5">
               <label className="block text-sm font-medium text-slate-300">
                 Username
                 <input
@@ -108,6 +203,8 @@ const OrganizerRegister = () => {
                   value={form.username}
                   onChange={handleChange}
                   autoComplete="username"
+                  required
+                  placeholder="Enter your username"
                   className="mt-2 h-12 w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 text-white outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                 />
               </label>
@@ -120,6 +217,8 @@ const OrganizerRegister = () => {
                   value={form.email}
                   onChange={handleChange}
                   autoComplete="email"
+                  required
+                  placeholder="Enter your email address"
                   className="mt-2 h-12 w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 text-white outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                 />
               </label>
@@ -133,7 +232,9 @@ const OrganizerRegister = () => {
                     value={form.password}
                     onChange={handleChange}
                     autoComplete="new-password"
+                    required
                     minLength={12}
+                    placeholder="Create a strong password"
                     title="Use at least 12 characters including uppercase, lowercase, number, and a special character"
                     className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 pr-11 text-white outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                   />

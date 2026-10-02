@@ -3,7 +3,7 @@ import helmet from "helmet";
 import hpp from "hpp";
 import compression from "compression";
 import cors from "cors";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import cookieParser from "cookie-parser";
 
 import env from "../config/env.js";
@@ -182,22 +182,39 @@ const securityMiddleware = (app) => {
     // Response compression.
     app.use(compression());
 
-    const authRateLimiter = rateLimit({
-        windowMs: env.RATELIMIT_WINDOW_MS,
-        limit: Math.max(200, Number(env.RATELIMIT || 100)),
-        standardHeaders: "draft-8",
-        legacyHeaders: false,
+    const createRouteLimiter = ({
+        limit,
+        message,
+        keyPrefix,
+        skipSuccessfulRequests = false,
+    }) =>
+        rateLimit({
+            windowMs: env.RATELIMIT_WINDOW_MS,
+            limit,
+            standardHeaders: "draft-8",
+            legacyHeaders: false,
+            skipSuccessfulRequests,
+            keyGenerator: (req) => {
+                const rawIp = req.ip || req.socket?.remoteAddress || "unknown";
+                const ip = ipKeyGenerator(rawIp, 56);
+                const route = String(req.originalUrl || req.path || "/").split("?")[0];
+                return `${keyPrefix}:${ip}:${route}`;
+            },
+            message,
+        });
+
+    const authRateLimiter = createRouteLimiter({
+        limit: Math.max(300, Number(env.RATELIMIT || 100) * 3),
+        keyPrefix: "auth",
         message: {
             success: false,
             message: "Too many authentication attempts. Please wait a moment and try again.",
         },
     });
 
-    const apiRateLimiter = rateLimit({
-        windowMs: env.RATELIMIT_WINDOW_MS,
-        limit: env.RATELIMIT,
-        standardHeaders: "draft-8",
-        legacyHeaders: false,
+    const apiRateLimiter = createRouteLimiter({
+        limit: Math.max(250, Number(env.RATELIMIT || 100) * 2),
+        keyPrefix: "api",
         message: {
             success: false,
             message: "Too many requests. Please try again later.",
@@ -217,11 +234,9 @@ const securityMiddleware = (app) => {
         );
     };
 
-    const publicGetRateLimiter = rateLimit({
-        windowMs: env.RATELIMIT_WINDOW_MS,
+    const publicGetRateLimiter = createRouteLimiter({
         limit: Math.max(50000, Number(env.RATELIMIT || 100) * 500),
-        standardHeaders: "draft-8",
-        legacyHeaders: false,
+        keyPrefix: "public",
         message: {
             success: false,
             message: "Too many public requests. Please try again later.",
@@ -229,6 +244,10 @@ const securityMiddleware = (app) => {
     });
 
     app.use((req, res, next) => {
+        if (req.method === "OPTIONS") {
+            return next();
+        }
+
         if (req.path.startsWith("/api/auth")) {
             return authRateLimiter(req, res, next);
         }

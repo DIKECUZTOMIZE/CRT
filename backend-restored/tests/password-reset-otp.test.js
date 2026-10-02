@@ -11,7 +11,7 @@ import {
 import * as userDao from '../src/dao/user.dao.js';
 import * as sessionDao from '../src/dao/session.dao.js';
 import { passwordResetConfirmSchema } from '../src/schema/auth.schema.js';
-import { getOtpCountdown } from '../../../User/src/shared/utils/passwordResetTimer.js';
+import { getOtpCountdown } from '../../User/src/shared/utils/passwordResetTimer.js';
 import UserModel from '../src/model/user.model.js';
 
 test('getOtpCountdown formats expiry while the OTP is still valid and marks expired state after timeout', () => {

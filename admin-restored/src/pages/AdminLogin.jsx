@@ -5,11 +5,11 @@ import { useNavigate } from "react-router";
 import { useAdminAuth } from "../feature/Auth/hooks/useAdminAuth.js";
 import { getRegisteredEmails, requestPasswordReset, resetPasswordWithOtp } from "../feature/Auth/api/authApi.js";
 import { getOtpCountdown } from "../shared/utils/passwordResetTimer.js";
-import { getStoredAdminUser, isAdminUser } from "../utils/adminAuth.js";
+import { isAdminUser } from "../utils/adminAuth.js";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
-  const { login, loading, error, setError } = useAdminAuth();
+  const { login, loading, error, setError, user } = useAdminAuth();
   const [form, setForm] = useState({ email: "admin@crt.com", password: "Admin@123456" });
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -199,22 +199,10 @@ const AdminLogin = () => {
   };
 
   useEffect(() => {
-    const activeUser = getStoredAdminUser();
-
-    if (activeUser && isAdminUser(activeUser)) {
+    if (!loading && user && isAdminUser(user)) {
       navigate("/admin/dashboard", { replace: true });
-      return;
     }
-
-    if (sessionStorage.getItem("crt-admin-auth") === "true") {
-      sessionStorage.removeItem("crt-admin-auth");
-      sessionStorage.removeItem("crt-admin-user");
-    }
-
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem("crt_auth_user");
-    }
-  }, [navigate]);
+  }, [loading, navigate, user]);
 
   const handleBack = () => {
     if (window.history.length > 1) {

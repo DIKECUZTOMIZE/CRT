@@ -13,6 +13,18 @@ const removeEmpty = (value) => {
   return value;
 };
 
+const sanitizeNestedObject = (value, allowedKeys = null) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+
+  const entries = Object.entries(value)
+    .filter(([key]) => !allowedKeys || allowedKeys.has(key))
+    .map(([key, nestedValue]) => [key, removeEmpty(nestedValue)]);
+
+  return Object.fromEntries(entries);
+};
+
 const sanitizeArray = (items = []) =>
   items
     .map((item) => {
@@ -58,23 +70,25 @@ const parseTimeValue = (value) => {
   const trimmed = value.trim();
   if (!trimmed) return null;
 
-  const meridiemMatch = trimmed.match(/^([0-9]{1,2}):([0-9]{2})\s*([AaPp][Mm])$/);
+  const meridiemMatch = trimmed.match(/^([0-9]{1,2}):([0-9]{2})(?::([0-9]{2}))?\s*([AaPp][Mm])$/);
   if (meridiemMatch) {
     let hours = Number(meridiemMatch[1]);
     const minutes = Number(meridiemMatch[2]);
-    const meridiem = meridiemMatch[3].toUpperCase();
+    const seconds = Number(meridiemMatch[3] ?? 0);
+    const meridiem = meridiemMatch[4].toUpperCase();
 
     if (meridiem === "AM" && hours === 12) hours = 0;
     if (meridiem === "PM" && hours !== 12) hours += 12;
 
-    return new Date(0, 0, 0, hours, minutes, 0);
+    return new Date(0, 0, 0, hours, minutes, seconds, 0);
   }
 
-  const standardMatch = trimmed.match(/^([0-9]{1,2}):([0-9]{2})$/);
+  const standardMatch = trimmed.match(/^([0-9]{1,2}):([0-9]{2})(?::([0-9]{2}))?$/);
   if (standardMatch) {
     const hours = Number(standardMatch[1]);
     const minutes = Number(standardMatch[2]);
-    return new Date(0, 0, 0, hours, minutes, 0);
+    const seconds = Number(standardMatch[3] ?? 0);
+    return new Date(0, 0, 0, hours, minutes, seconds, 0);
   }
 
   return null;
@@ -90,15 +104,19 @@ const combineDateTime = (dateValue, timeValue) => {
   if (!time) return date;
 
   const nextDate = new Date(date);
-  nextDate.setHours(time.getHours(), time.getMinutes(), 0, 0);
+  nextDate.setHours(time.getHours(), time.getMinutes(), time.getSeconds(), 0);
   return nextDate;
 };
 
 const deriveEventStatus = (eventData = {}) => {
   const incomingStatus = String(eventData.status || "").trim().toLowerCase();
 
-  if (["cancelled", "postponed", "upcoming", "live", "completed", "ended"].includes(incomingStatus)) {
+  if (["cancelled", "postponed", "completed", "ended"].includes(incomingStatus)) {
     return incomingStatus;
+  }
+
+  if (!incomingStatus) {
+    return "upcoming";
   }
 
   const start = combineDateTime(eventData.eventDate || eventData.eventStart, eventData.eventStartTime || eventData.eventTime);
@@ -108,12 +126,22 @@ const deriveEventStatus = (eventData = {}) => {
 
   const now = new Date();
   if (end && now > end) return "completed";
-  if (start && now >= start && end && now < end) return "live";
+  if (start && now >= start) return "live";
   if (start && now < start) return "upcoming";
   return "upcoming";
 };
 
+const isEditLockedByStatus = (event) => {
+  if (!event || typeof event !== "object") return false;
+
+  return false;
+};
+
 const sanitizeEventPayload = (formData, eventId = null) => {
+  const safeFormData = { ...(formData || {}) };
+  delete safeFormData.results;
+  delete safeFormData.completionConfirmedAt;
+
   const allowedKeys = new Set([
     "title",
     "category",
@@ -161,10 +189,10 @@ const sanitizeEventPayload = (formData, eventId = null) => {
 
   const payload = {};
 
-  Object.keys(formData || {}).forEach((key) => {
+  Object.keys(safeFormData).forEach((key) => {
     if (!allowedKeys.has(key)) return;
 
-    const value = formData[key];
+    const value = safeFormData[key];
 
     if (Array.isArray(value)) {
       payload[key] = sanitizeArray(value);
@@ -172,9 +200,17 @@ const sanitizeEventPayload = (formData, eventId = null) => {
     }
 
     if (value && typeof value === "object" && !Array.isArray(value)) {
-      payload[key] = Object.fromEntries(
-        Object.entries(value).map(([nestedKey, nestedValue]) => [nestedKey, removeEmpty(nestedValue)])
-      );
+      if (key === "organizerContact") {
+        payload[key] = sanitizeNestedObject(value, new Set(["name", "whatsapp"]));
+        return;
+      }
+
+      if (key === "participation") {
+        payload[key] = sanitizeNestedObject(value, new Set(["enabled", "mode", "minTeamSize", "maxTeamSize"]));
+        return;
+      }
+
+      payload[key] = sanitizeNestedObject(value);
       return;
     }
 
@@ -193,6 +229,8 @@ const sanitizeEventPayload = (formData, eventId = null) => {
   delete payload.selectedPrizeCategory;
   delete payload.customPrizeCategory;
   delete payload.hasCustomFields;
+  delete payload.results;
+  delete payload.completionConfirmedAt;
 
   if (payload.totalSeats !== undefined && payload.totalSeats !== "") {
     payload.totalSeats = Number(payload.totalSeats);
@@ -264,11 +302,14 @@ const sanitizeEventPayload = (formData, eventId = null) => {
   payload.participationSteps = sanitizeArray(payload.participationSteps || []);
   payload.schedules = sanitizeArray(payload.schedules || []);
 
-  if (eventId) {
-    payload.status = payload.status ? deriveEventStatus(payload) : "upcoming";
+  if (payload.status && ["upcoming", "live", "completed", "ended", "cancelled", "postponed"].includes(String(payload.status).trim().toLowerCase())) {
+    payload.status = payload.status.trim().toLowerCase();
   } else {
-    payload.status = "upcoming";
+    payload.status = payload.status ? deriveEventStatus(payload) : "upcoming";
   }
+
+  delete payload.results;
+  delete payload.completionConfirmedAt;
 
   return payload;
 };
@@ -292,51 +333,62 @@ const populateFormFromEvent = (event) => {
     return {};
   }
 
-  const storedLocation = event.venueAddress || event.location || "";
+  const safeEvent = { ...event };
+  delete safeEvent.results;
+  delete safeEvent.completionConfirmedAt;
+
+  const storedLocation = safeEvent.venueAddress || safeEvent.location || "";
+  const organizerContact = safeEvent.organizerContact || {};
 
   return {
-    title: event.title || "",
-    category: event.category || "",
-    tagline: event.tagline || "",
-    eventMode: event.eventMode || "Offline",
-    status: event.status || "upcoming",
-    statusReason: event.statusReason || "",
+    title: safeEvent.title || "",
+    category: safeEvent.category || "",
+    tagline: safeEvent.tagline || "",
+    eventMode: safeEvent.eventMode || "Offline",
+    status: safeEvent.status || "upcoming",
+    statusReason: safeEvent.statusReason || "",
     location: storedLocation,
     venueAddress: storedLocation,
-    onlineLink: event.onlineLink || "",
-    description: event.description || "",
-    bannerUrl: event.bannerUrl || "",
-    cardImageUrl: event.cardImageUrl || "",
-    eventDate: event.eventDate || "",
-    eventEndDate: event.eventEndDate || "",
-    eventStartTime: event.eventStartTime || "",
-    eventEndTime: event.eventEndTime || "",
-    eventTime: event.eventTime || "",
-    registrationStart: event.registrationStart || "",
-    registrationEnd: event.registrationEnd || "",
-    eventStart: event.eventStart || "",
-    eventEnd: event.eventEnd || "",
-    schedules: Array.isArray(event.schedules) ? event.schedules : [],
-    seatAvailability: event.seatAvailability || "",
-    totalSeats: event.totalSeats ?? "",
-    customSeatDetails: event.customSeatDetails || "",
-    entries: Array.isArray(event.entries) ? event.entries : [],
-    hasParticipationType: event.participation?.enabled ? "Yes" : "No",
-    participationMode: event.participation?.mode || "Solo",
-    minTeamSize: event.participation?.minTeamSize ?? "",
-    maxTeamSize: event.participation?.maxTeamSize ?? "",
-    totalPrizePool: event.totalPrizePool ?? "",
-    prizes: Array.isArray(event.prizes) ? event.prizes : [],
-    eventRules: Array.isArray(event.eventRules) ? event.eventRules : [],
-    securityRequirements: Array.isArray(event.securityRequirements) ? event.securityRequirements : [],
-    participationSteps: Array.isArray(event.participationSteps) ? event.participationSteps : [],
-    organizerTeam: Array.isArray(event.organizerTeam) ? event.organizerTeam : [],
-    organizerContact: event.organizerContact || { name: "", whatsapp: "" },
-    customFields: Array.isArray(event.customFields) ? event.customFields : [],
-    state: event.state || "",
-    district: event.district || "",
-    city: event.city || "",
-    pinCode: event.pinCode || "",
+    onlineLink: safeEvent.onlineLink || "",
+    description: safeEvent.description || "",
+    bannerUrl: safeEvent.bannerUrl || "",
+    cardImageUrl: safeEvent.cardImageUrl || "",
+    eventDate: safeEvent.eventDate || "",
+    eventEndDate: safeEvent.eventEndDate || "",
+    eventStartTime: safeEvent.eventStartTime || "",
+    eventEndTime: safeEvent.eventEndTime || "",
+    eventTime: safeEvent.eventTime || "",
+    registrationStart: safeEvent.registrationStart || "",
+    registrationEnd: safeEvent.registrationEnd || "",
+    eventStart: safeEvent.eventStart || "",
+    eventEnd: safeEvent.eventEnd || "",
+    schedules: Array.isArray(safeEvent.schedules) ? safeEvent.schedules : [],
+    seatAvailability: safeEvent.seatAvailability || "",
+    totalSeats: safeEvent.totalSeats ?? "",
+    customSeatDetails: safeEvent.customSeatDetails || "",
+    entries: Array.isArray(safeEvent.entries) ? safeEvent.entries : [],
+    hasParticipationType: safeEvent.participation?.enabled ? "Yes" : "No",
+    participationMode: safeEvent.participation?.mode || "Solo",
+    minTeamSize: safeEvent.participation?.minTeamSize ?? "",
+    maxTeamSize: safeEvent.participation?.maxTeamSize ?? "",
+    totalPrizePool: safeEvent.totalPrizePool ?? "",
+    prizes: Array.isArray(safeEvent.prizes) ? safeEvent.prizes : [],
+    eventRules: Array.isArray(safeEvent.eventRules) ? safeEvent.eventRules : [],
+    securityRequirements: Array.isArray(safeEvent.securityRequirements) ? safeEvent.securityRequirements : [],
+    participationSteps: Array.isArray(safeEvent.participationSteps) ? safeEvent.participationSteps : [],
+    organizerTeam: Array.isArray(safeEvent.organizerTeam) ? safeEvent.organizerTeam : [],
+    organizerContact: {
+      name: organizerContact.name || "",
+      whatsapp: organizerContact.whatsapp || "",
+      email: organizerContact.email || "",
+      whatsappGroup: organizerContact.whatsappGroup || "",
+    },
+    customFields: Array.isArray(safeEvent.customFields) ? safeEvent.customFields : [],
+    hasCustomFields: Array.isArray(safeEvent.customFields) && safeEvent.customFields.length > 0 ? "Yes" : "No",
+    state: safeEvent.state || "",
+    district: safeEvent.district || "",
+    city: safeEvent.city || "",
+    pinCode: safeEvent.pinCode || "",
   };
 };
 
@@ -425,6 +477,12 @@ export const useCreateEventForm = (eventId = null) => {
       try {
         const event = await getEventById(eventId);
         if (!active || !event) return;
+
+        if (isEditLockedByStatus(event)) {
+          toast.error("This event cannot be edited anymore.");
+          navigate(`/organizer/events/${eventId}`);
+          return;
+        }
 
         const populatedForm = populateFormFromEvent(event);
         originalEventSnapshotRef.current = JSON.stringify(stringifyComparableValue(populatedForm));

@@ -7,7 +7,7 @@ const isKnownBrokenUploadUrl = (value) => {
   if (!value) return false;
 
   const normalized = String(value).trim();
-  return /(?:^|\/)(?:uploads\/)?(?:banner_|test-banner-)[^\s"'<>]+\.(?:avif|jpg|jpeg|png|webp|gif)/i.test(normalized);
+  return /(?:^|\/)(?:uploads\/)?(?:broken-|invalid-|missing-|placeholder-)[^\s"'<>]+\.(?:avif|jpg|jpeg|png|webp|gif)/i.test(normalized);
 };
 
 const getMinEntryFee = (event) => {

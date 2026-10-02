@@ -1,4 +1,5 @@
 import { useLoginPage } from "../../hook/useLoginPage.js";
+import { getPortalBaseUrl } from "../../../app/utils/roleUtils.js";
 import AuthCloseButton from "../components/AuthCloseButton.jsx";
 import PasswordField from "../components/PasswordField.jsx";
 
@@ -26,7 +27,7 @@ const AdminLogin = () => {
         handleRequestOtp,
         handlePasswordReset,
     } = useLoginPage({
-        redirectPath: "https://admin.crtcompete.com/admin/dashboard",
+        redirectPath: getPortalBaseUrl("ADMIN"),
         allowedRoles: ["ADMIN"],
     });
 
@@ -186,7 +187,7 @@ const AdminLogin = () => {
                 </button>
 
                 <p className="text-center text-sm text-slate-400">
-                    Need organizer access? <button type="button" onClick={() => window.open("https://organizer.crtcompete.com/organizer/login", "_blank", "noopener,noreferrer")} className="font-semibold text-emerald-400">Organizer login</button>
+                    Need organizer access? <button type="button" onClick={() => window.open(`${window.location.origin}/organizer/login`, "_blank", "noopener,noreferrer")} className="font-semibold text-emerald-400">Organizer login</button>
                 </p>
             </form>
         </main>

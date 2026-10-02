@@ -1,10 +1,8 @@
 import React from "react";
-import CompetitionSection from "./CompetitionSection";
+import PremiumBudgetSection from "./PremiumBudgetSection";
 
 const BudgetFriendly = ({ competitions = [], savedIds = [], onToggleSave }) => (
-  <CompetitionSection
-    title="Budget Friendly"
-    subtitle="Beginner-accessible challenges and standard prize pools"
+  <PremiumBudgetSection
     competitions={competitions}
     savedIds={savedIds}
     onToggleSave={onToggleSave}

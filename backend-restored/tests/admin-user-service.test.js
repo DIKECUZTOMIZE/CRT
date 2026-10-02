@@ -30,11 +30,32 @@ test('getAdminUsersService exists and returns a normalized list', async () => {
 test('getAdminUsersService can filter organizers separately from users', async () => {
   const organizers = await getAdminUsersService('ORGANIZER');
   const users = await getAdminUsersService('USER');
+  const admins = await getAdminUsersService('ADMIN');
 
   assert.ok(Array.isArray(organizers), 'organizers should be an array');
   assert.ok(Array.isArray(users), 'users should be an array');
-  assert.ok(organizers.every((item) => item.role === 'ORGANIZER'), 'all organizer rows should be ORGANIZER');
-  assert.ok(users.every((item) => item.role === 'USER'), 'all user rows should be USER');
+  assert.ok(Array.isArray(admins), 'admins should be an array');
+
+  const mixedRoleOrganizer = organizers.find((item) =>
+    Array.isArray(item.roles) && item.roles.includes('USER') && item.roles.includes('ORGANIZER')
+  );
+
+  assert.ok(mixedRoleOrganizer, 'mixed-role organizers should be included in the organizer filter');
+  assert.equal(mixedRoleOrganizer.role, 'USER', 'mixed-role organizer should retain USER as the primary role');
+  assert.ok(mixedRoleOrganizer.roles.includes('ORGANIZER'), 'mixed-role organizer must still have ORGANIZER access');
+
+  const mixedRoleStillInUserList = users.some((item) =>
+    String(item.email).toLowerCase() === String(mixedRoleOrganizer.email).toLowerCase()
+  );
+  assert.ok(mixedRoleStillInUserList, 'mixed-role organizer should remain in the user list because they are still USER accounts');
+
+  const legacyOrganizer = organizers.find((item) => item.role === 'ORGANIZER');
+  assert.ok(legacyOrganizer, 'legacy organizer-only accounts should still be included');
+
+  const adminOnly = admins.find((item) => item.role === 'ADMIN');
+  assert.ok(adminOnly, 'admin account records should remain ADMIN');
+  assert.ok(organizers.every((item) => !item.role || item.role !== 'ADMIN'), 'admin records should not appear in organizer filter');
+  assert.ok(users.every((item) => !item.role || item.role !== 'ADMIN'), 'admin records should not appear in user filter');
 });
 
 test('normalizeAddressForStorage combines separate address parts into one stored value', () => {

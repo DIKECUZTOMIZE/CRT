@@ -5,6 +5,7 @@ import { validate } from "../../validator/validate.js";
 import asyncHandle from "../../shared/utils/asyncHandle.js";
 import { createEventSchema, updateEventSchema } from "../../schema/event.schema.js";
 import {
+    completeEventController,
     createEventController,
     deleteEventController,
     getOrganizerEventByIdController,
@@ -41,6 +42,11 @@ eventRouter.put(
     "/:id",
     validate(updateEventSchema),
     asyncHandle(updateEventController)
+);
+eventRouter.post(
+    "/:id/complete",
+    requireRole("ORGANIZER", "ADMIN"),
+    asyncHandle(completeEventController)
 );
 eventRouter.delete("/:id", asyncHandle(deleteEventController));
 
