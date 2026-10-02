@@ -14,6 +14,8 @@ import {
 import { setUserLocation } from "../store/location.slice.js";
 import { emitLocationUpdate } from "../config/socket.js";
 import apiClient, { API_ENDPOINTS } from "../config/axios.js";
+import { updateUserProfile } from "../../feature/UserProfile/api/userProfile.api.js";
+import NotificationList from "../../feature/Notification/components/NotificationList.jsx";
 
 const NAV_ITEMS = [
   { label: "Home", path: "/" },
@@ -73,29 +75,25 @@ const parseEventLocation = (event = {}) => {
   };
 };
 
-const defaultNotifications = [
-  {
-    id: 1,
-    title: "New event matches your city",
-    message: "3 competitions near Bengaluru are live today.",
-    time: "2m ago",
-    read: false,
-  },
-  {
-    id: 2,
-    title: "Profile reminder",
-    message: "Complete your organizer profile to unlock more visibility.",
-    time: "1h ago",
-    read: false,
-  },
-  {
-    id: 3,
-    title: "Payment update",
-    message: "Your payout status has been updated successfully.",
-    time: "Yesterday",
-    read: true,
-  },
-];
+const transformNotification = (notification = {}) => {
+  const normalized = notification?.data && typeof notification.data === "object" ? notification.data : notification;
+  const id = normalized._id || normalized.id || Date.now().toString();
+  const createdAt = normalized.createdAt || normalized.updatedAt || null;
+
+  return {
+    id: String(id),
+    title: normalizeText(normalized.title || "Notification"),
+    message: normalizeText(normalized.message || ""),
+    time: createdAt ? new Date(createdAt).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }) : "Just now",
+    read: Boolean(normalized.isRead ?? normalized.read),
+    link: normalized.link || "",
+  };
+};
 
 const Navbar = () => {
   const dispatch = useDispatch();
@@ -109,7 +107,6 @@ const Navbar = () => {
   const [selectedCity, setSelectedCity] = useState(currentLocation?.city || "All India");
   const [stateSearch, setStateSearch] = useState("");
   const [citySearch, setCitySearch] = useState("");
-  const [notifications, setNotifications] = useState(defaultNotifications);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isLocationLoading, setIsLocationLoading] = useState(false);
 
@@ -121,14 +118,6 @@ const Navbar = () => {
       setSelectedCity(currentLocation.city);
     }
   }, [currentLocation?.state, currentLocation?.city]);
-
-  const unreadNotifications = notifications.filter((item) => !item.read).length;
-
-  const handleNotificationRead = (id) => {
-    setNotifications((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, read: true } : item))
-    );
-  };
 
   const accountPath = "/profile";
   const normalizedUser = user?.user && typeof user.user === "object" ? user.user : user;
@@ -156,6 +145,7 @@ const Navbar = () => {
     .map((part) => part.charAt(0).toUpperCase())
     .join("") || "D";
   const hasAvatar = Boolean(avatarUrl && avatarUrl !== "");
+
 
   useEffect(() => {
     let ignore = false;
@@ -213,6 +203,12 @@ const Navbar = () => {
 
         setLocationOptions({ states, citiesByState });
 
+        if (!currentLocation?.isSelected) {
+          setSelectedState("India");
+          setSelectedCity("All India");
+          return;
+        }
+
         if (states.length) {
           const nextState = currentLocation?.state && states.includes(currentLocation.state)
             ? currentLocation.state
@@ -257,34 +253,52 @@ const Navbar = () => {
     );
   }, [citySearch, locationOptions.citiesByState, selectedState]);
 
+  const persistLocationToBackend = async (location) => {
+    if (!location || typeof location !== "object") {
+      return;
+    }
+
+    if (!user?._id && !user?.id) {
+      return;
+    }
+
+    try {
+      await updateUserProfile({ location });
+    } catch {
+      // Ignore backend sync failures so the existing local selector behavior remains intact.
+    }
+  };
+
   const handleStateSelect = (state) => {
     setSelectedState(state);
     const cityList = locationOptions.citiesByState?.[state] || [];
     const defaultCity = cityList[0] || "All India";
     setSelectedCity(defaultCity);
-    const nextLocation = { state, city: defaultCity };
+    const nextLocation = { state, city: defaultCity, country: "India", isSelected: true };
     dispatch(setUserLocation(nextLocation));
     emitLocationUpdate(nextLocation);
+    persistLocationToBackend(nextLocation);
     setCitySearch("");
   };
 
   const handleCitySelect = (city) => {
     setSelectedCity(city);
-    const nextLocation = { state: selectedState, city };
+    const nextLocation = { state: selectedState, city, country: "India", isSelected: true };
     dispatch(setUserLocation(nextLocation));
     emitLocationUpdate(nextLocation);
+    persistLocationToBackend(nextLocation);
   };
 
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950/90 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-[#BFE3D0] bg-[linear-gradient(180deg,#CDEFE0_0%,#DDF5EA_45%,#EDF9F3_100%)] shadow-[0_1px_6px_rgba(6,78,59,0.08)] backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between gap-3">
             <Link to="/" className="group flex shrink-0 items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/20 transition-transform group-hover:scale-105">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#DDEFE7] bg-[#F4F9F6] text-[#059669] shadow-[0_1px_3px_rgba(6,78,59,0.08)] transition-transform group-hover:scale-105">
                 <Trophy className="h-5 w-5" />
               </div>
-              <span className="text-xl font-black tracking-tight text-emerald-400">CRT</span>
+              <span className="text-xl font-black tracking-tight text-[#059669]">CRT</span>
             </Link>
 
             <nav className="hidden items-center gap-1 md:flex">
@@ -309,91 +323,43 @@ const Navbar = () => {
               <button
                 type="button"
                 onClick={() => setIsLocationModalOpen(true)}
-                className="hidden items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-emerald-500/40 hover:text-white md:inline-flex"
+                className="hidden items-center gap-2 rounded-xl border border-[#CDE9DB] bg-[#FFFFFF] px-3 py-2 text-xs font-semibold text-[#64748B] transition hover:border-[#A7F3D0] hover:bg-[#F7FBF9] hover:text-[#059669] md:inline-flex"
               >
-                <MapPin className="h-4 w-4 text-emerald-400" />
+                <MapPin className="h-4 w-4 text-[#059669]" />
                 <span className="max-w-[110px] truncate">{selectedCity || selectedState}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsLocationModalOpen(true)}
-                className="inline-flex rounded-lg border border-slate-800 bg-slate-900/80 p-2 text-slate-300 transition hover:border-emerald-500/40 hover:text-white md:hidden"
+                className="inline-flex rounded-lg border border-[#CDE9DB] bg-[#FFFFFF] p-2 text-[#64748B] transition hover:border-[#A7F3D0] hover:bg-[#F7FBF9] hover:text-[#059669] md:hidden"
                 aria-label="Open location selector"
               >
                 <MapPin className="h-4 w-4" />
               </button>
 
-              <div className="relative" aria-hidden="true" style={{ display: "none" }}>
-                <button
-                  type="button"
-                  onClick={() => setShowNotifications((prev) => !prev)}
-                  className="relative rounded-lg p-2 text-slate-400 hover:text-emerald-400"
-                  aria-label="Notifications"
-                >
-                  <Bell className="h-5 w-5" />
-                  {unreadNotifications > 0 && (
-                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-400 px-1 text-[9px] font-bold text-slate-950">
-                      {unreadNotifications}
-                    </span>
-                  )}
-                </button>
-
-                {showNotifications && (
-                  <div className="absolute right-0 top-12 z-50 w-80 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl shadow-slate-950/60">
-                    <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
-                      <p className="text-sm font-bold text-white">Notifications</p>
-                      <button
-                        type="button"
-                        onClick={() => setNotifications((prev) => prev.map((item) => ({ ...item, read: true })))}
-                        className="text-[10px] font-semibold uppercase tracking-wide text-emerald-400"
-                      >
-                        Mark all read
-                      </button>
-                    </div>
-
-                    <div className="max-h-80 overflow-y-auto">
-                      {notifications.map((notification) => (
-                        <button
-                          key={notification.id}
-                          type="button"
-                          onClick={() => handleNotificationRead(notification.id)}
-                          className={`block w-full border-b border-slate-800 px-4 py-3 text-left transition hover:bg-slate-900/80 ${
-                            !notification.read ? "bg-slate-900/50" : "bg-slate-950"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-semibold text-white">{notification.title}</p>
-                              <p className="mt-1 text-xs text-slate-400">{notification.message}</p>
-                            </div>
-                            {!notification.read && (
-                              <span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                            )}
-                          </div>
-                          <p className="mt-2 text-[10px] uppercase tracking-[0.18em] text-slate-500">
-                            {notification.time}
-                          </p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              <div className="relative">
+                <NotificationList
+                  selectedState={selectedState}
+                  isOpen={showNotifications}
+                  onClose={() => setShowNotifications(false)}
+                  onToggle={() => setShowNotifications((prev) => !prev)}
+                />
               </div>
 
               {user ? (
-                <Link
-                  to={accountPath}
-                  replace
-                  className="hidden items-center justify-center rounded-full border border-emerald-500/30 bg-slate-900/80 p-1.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/10 transition hover:border-emerald-400/50 hover:bg-slate-800 sm:inline-flex"
-                  aria-label="Open profile"
-                >
-                  <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-emerald-500/30 bg-slate-800">
+                <>
+                  <Link
+                    to={accountPath}
+                    replace
+                    className="inline-flex items-center justify-center rounded-full border border-[#A7F3D0] bg-[#FFFFFF] p-2 text-[#059669] shadow-[0_1px_3px_rgba(6,78,59,0.08)] transition hover:bg-[#F7FBF9] sm:hidden"
+                    aria-label="Open profile"
+                  >
                     {hasAvatar ? (
                       <img
                         src={avatarUrl}
                         alt={displayName || "User profile"}
-                        className="h-full w-full object-cover"
+                        className="h-6 w-6 rounded-full object-cover"
                         onError={(event) => {
                           event.currentTarget.style.display = "none";
                           const fallback = event.currentTarget.nextElementSibling;
@@ -402,16 +368,44 @@ const Navbar = () => {
                       />
                     ) : null}
                     <span
-                      className="flex h-full w-full items-center justify-center text-[10px] font-bold text-emerald-300"
+                      className="flex h-6 w-6 items-center justify-center rounded-full"
                       style={{ display: hasAvatar ? "none" : "flex" }}
                     >
-                      {avatarInitial}
+                      <User className="h-4 w-4" />
                     </span>
-                  </div>
-                </Link>
+                  </Link>
+
+                  <Link
+                    to={accountPath}
+                    replace
+                    className="hidden items-center justify-center rounded-full border border-[#A7F3D0] bg-[#FFFFFF] p-1.5 text-sm font-bold text-[#64748B] shadow-[0_1px_3px_rgba(6,78,59,0.06)] transition hover:border-[#A7F3D0] hover:bg-[#F7FBF9] hover:text-[#059669] sm:inline-flex"
+                    aria-label="Open profile"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-[#A7F3D0] bg-white">
+                      {hasAvatar ? (
+                        <img
+                          src={avatarUrl}
+                          alt={displayName || "User profile"}
+                          className="h-full w-full object-cover"
+                          onError={(event) => {
+                            event.currentTarget.style.display = "none";
+                            const fallback = event.currentTarget.nextElementSibling;
+                            if (fallback) fallback.style.display = "flex";
+                          }}
+                        />
+                      ) : null}
+                      <span
+                        className="flex h-full w-full items-center justify-center text-[#059669]"
+                        style={{ display: hasAvatar ? "none" : "flex" }}
+                      >
+                        <User className="h-4 w-4" />
+                      </span>
+                    </div>
+                  </Link>
+                </>
               ) : (
                 <div className="hidden items-center gap-2 sm:flex">
-                  <Link to="/login" replace className="flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-bold text-slate-950 transition hover:bg-emerald-400">
+                  <Link to="/login" replace className="flex items-center gap-2 rounded-xl bg-[#059669] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#047857]">
                     <User className="h-4 w-4" />
                     <span>User Login</span>
                   </Link>
@@ -425,7 +419,7 @@ const Navbar = () => {
       {isLocationModalOpen && (
         <div className="fixed inset-0 z-[60] overflow-hidden bg-slate-950/80 backdrop-blur-sm">
           <div className="flex h-full w-full items-end justify-center p-0 md:items-center md:p-4">
-            <div className="relative flex w-full max-h-[92vh] flex-col overflow-hidden rounded-t-[1.75rem] border border-slate-800 bg-slate-900 shadow-[0_-20px_50px_rgba(2,6,23,0.8)] md:max-w-3xl md:rounded-3xl md:shadow-2xl md:shadow-slate-950/60">
+            <div className="relative flex w-full max-h-[70vh] flex-col overflow-hidden rounded-t-[1.75rem] border border-slate-800 bg-slate-900 shadow-[0_-20px_50px_rgba(2,6,23,0.8)] md:max-h-[80vh] md:max-w-3xl md:rounded-3xl md:shadow-2xl md:shadow-slate-950/60">
               <button
                 type="button"
                 onClick={() => setIsLocationModalOpen(false)}
@@ -458,34 +452,36 @@ const Navbar = () => {
                   />
 
                   <div
-                    className="min-h-0 max-h-[32vh] flex-1 space-y-1.5 overflow-y-auto overscroll-contain pr-1 md:max-h-[46vh]"
+                    className="min-h-0 max-h-[32vh] flex-1 overflow-y-auto overscroll-contain pr-1 md:max-h-[46vh]"
                     style={{ WebkitOverflowScrolling: "touch" }}
                   >
-                    {isLocationLoading ? (
-                      <p className="rounded-xl border border-dashed border-slate-700 px-3 py-5 text-center text-xs text-slate-500">
-                        Loading locations...
-                      </p>
-                    ) : visibleStates.length > 0 ? (
-                      visibleStates.map((state) => (
-                        <button
-                          key={state}
-                          type="button"
-                          onClick={() => handleStateSelect(state)}
-                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition ${
-                            selectedState === state
-                              ? "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30"
-                              : "text-slate-300 hover:bg-slate-800/90 hover:text-white"
-                          }`}
-                        >
-                          <span>{state}</span>
-                          {selectedState === state && <Check className="h-4 w-4" />}
-                        </button>
-                      ))
-                    ) : (
-                      <p className="rounded-xl border border-dashed border-slate-700 px-3 py-5 text-center text-xs text-slate-500">
-                        No state found
-                      </p>
-                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {isLocationLoading ? (
+                        <p className="w-full rounded-xl border border-dashed border-slate-700 px-3 py-5 text-center text-xs text-slate-500">
+                          Loading locations...
+                        </p>
+                      ) : visibleStates.length > 0 ? (
+                        visibleStates.map((state) => (
+                          <button
+                            key={state}
+                            type="button"
+                            onClick={() => handleStateSelect(state)}
+                            className={`flex min-w-[calc(50%-0.5rem)] flex-1 basis-[calc(50%-0.5rem)] items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                              selectedState === state
+                                ? "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30"
+                                : "text-slate-300 hover:bg-slate-800/90 hover:text-white"
+                            }`}
+                          >
+                            <span>{state}</span>
+                            {selectedState === state && <Check className="h-4 w-4" />}
+                          </button>
+                        ))
+                      ) : (
+                        <p className="w-full rounded-xl border border-dashed border-slate-700 px-3 py-5 text-center text-xs text-slate-500">
+                          No state found
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -506,35 +502,37 @@ const Navbar = () => {
                   />
 
                   <div
-                    className="min-h-0 max-h-[32vh] flex-1 space-y-1.5 overflow-y-auto overscroll-contain pr-1 md:max-h-[46vh]"
+                    className="min-h-0 max-h-[32vh] flex-1 overflow-y-auto overscroll-contain pr-1 md:max-h-[46vh]"
                     style={{ WebkitOverflowScrolling: "touch" }}
                   >
-                    {isLocationLoading ? (
-                      <p className="rounded-xl border border-dashed border-slate-700 px-3 py-5 text-center text-xs text-slate-500">
-                        Loading cities...
-                      </p>
-                    ) : visibleCities.length > 0 ? (
-                      visibleCities.map((city) => (
-                        <button
-                          key={city}
-                          type="button"
-                          aria-pressed={selectedCity === city}
-                          onClick={() => handleCitySelect(city)}
-                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition ${
-                            selectedCity === city
-                              ? "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.2)]"
-                              : "text-slate-300 hover:bg-slate-800/90 hover:text-white"
-                          }`}
-                        >
-                          <span>{city}</span>
-                          {selectedCity === city && <Check className="h-4 w-4" />}
-                        </button>
-                      ))
-                    ) : (
-                      <p className="rounded-xl border border-dashed border-slate-700 px-3 py-5 text-center text-xs text-slate-500">
-                        No city found for this state
-                      </p>
-                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {isLocationLoading ? (
+                        <p className="w-full rounded-xl border border-dashed border-slate-700 px-3 py-5 text-center text-xs text-slate-500">
+                          Loading cities...
+                        </p>
+                      ) : visibleCities.length > 0 ? (
+                        visibleCities.map((city) => (
+                          <button
+                            key={city}
+                            type="button"
+                            aria-pressed={selectedCity === city}
+                            onClick={() => handleCitySelect(city)}
+                            className={`flex min-w-[calc(50%-0.5rem)] flex-1 basis-[calc(50%-0.5rem)] items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                              selectedCity === city
+                                ? "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.2)]"
+                                : "text-slate-300 hover:bg-slate-800/90 hover:text-white"
+                            }`}
+                          >
+                            <span>{city}</span>
+                            {selectedCity === city && <Check className="h-4 w-4" />}
+                          </button>
+                        ))
+                      ) : (
+                        <p className="w-full rounded-xl border border-dashed border-slate-700 px-3 py-5 text-center text-xs text-slate-500">
+                          No city found for this state
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -557,9 +555,16 @@ const Navbar = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      const nextLocation = { state: selectedState, city: selectedCity };
+                      const nextLocation = {
+                        state: selectedState,
+                        city: selectedCity,
+                        country: "India",
+                        isSelected: true,
+                      };
+
                       dispatch(setUserLocation(nextLocation));
                       emitLocationUpdate(nextLocation);
+                      persistLocationToBackend(nextLocation);
                       setIsLocationModalOpen(false);
                     }}
                     className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2.5 text-sm font-bold text-slate-950 shadow-[0_12px_24px_rgba(16,185,129,0.25)] transition hover:brightness-110 active:scale-[0.99] md:flex-none"

@@ -73,7 +73,7 @@ const normalizeHomeEvent = (event) => {
       event?.banner ||
       event?.image ||
       event?.imageUrl ||
-      "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=900&auto=format&fit=crop&q=80",
+      "",
     prize: prizeText,
     status: (event?.status || "upcoming").toLowerCase(),
     date: dateText,
@@ -88,7 +88,8 @@ const normalizeHomeEvent = (event) => {
   };
 };
 
-const DEFAULT_VISIBLE_ITEMS = 6;
+const DESKTOP_VISIBLE_ITEMS = 6;
+const MOBILE_INITIAL_VISIBLE_ITEMS = 2;
 
 const CompetitionSection = ({
   title,
@@ -97,27 +98,46 @@ const CompetitionSection = ({
   savedIds = [],
   onToggleSave,
   onCompetitionClick,
+  className = "",
+  titleClassName = "",
 }) => {
   const navigate = useNavigate();
   const sliderRef = useRef(null);
   const [showAll, setShowAll] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth < 768 : false);
 
   const itemsToDisplay = useMemo(() => {
     const rawList = Array.isArray(competitions) ? competitions : [];
     return rawList.map(normalizeHomeEvent);
   }, [competitions]);
 
-  useEffect(() => {
-    setShowAll(false);
-  }, [title, competitions.length]);
+  const initialVisibleCount = isMobile ? MOBILE_INITIAL_VISIBLE_ITEMS : DESKTOP_VISIBLE_ITEMS;
 
-  const visibleItems = useMemo(() => {
-    if (showAll || itemsToDisplay.length <= DEFAULT_VISIBLE_ITEMS) {
-      return itemsToDisplay;
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const updateMobileState = () => setIsMobile(mediaQuery.matches);
+
+    updateMobileState();
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", updateMobileState);
+      return () => mediaQuery.removeEventListener("change", updateMobileState);
     }
 
-    return itemsToDisplay.slice(0, DEFAULT_VISIBLE_ITEMS);
-  }, [itemsToDisplay, showAll]);
+    mediaQuery.addListener(updateMobileState);
+    return () => mediaQuery.removeListener(updateMobileState);
+  }, []);
+
+  useEffect(() => {
+    setShowAll(false);
+  }, [title, itemsToDisplay.length, isMobile]);
+
+  const visibleItems = useMemo(() => {
+    const maxVisible = showAll ? itemsToDisplay.length : Math.min(initialVisibleCount, itemsToDisplay.length);
+    return itemsToDisplay.slice(0, maxVisible);
+  }, [itemsToDisplay, showAll, initialVisibleCount]);
 
   const handleSliderScroll = (direction) => {
     if (!sliderRef.current) return;
@@ -143,7 +163,7 @@ const CompetitionSection = ({
   };
 
   return (
-    <section className="w-full py-4 sm:py-5">
+    <section className={`w-full py-4 sm:py-5 ${className}`.trim()}>
       <style>{`
         @keyframes cardFade {
           from {
@@ -159,25 +179,19 @@ const CompetitionSection = ({
 
       <div className="mb-3 flex items-center justify-between gap-3 sm:mb-4">
         <div className="min-w-0">
-          <h2 className="text-sm font-bold tracking-tight text-white sm:text-xl">
+          <h2 className={`text-sm font-bold tracking-tight text-slate-900 sm:text-xl sm:text-white ${titleClassName}`.trim()}>
             {title}
           </h2>
-
-          {subtitle && (
-            <p className="mt-0.5 text-[9px] text-slate-400 sm:text-xs">
-              {subtitle}
-            </p>
-          )}
         </div>
 
         <div className="flex items-center gap-2">
-          {itemsToDisplay.length > DEFAULT_VISIBLE_ITEMS && (
+          {itemsToDisplay.length > 0 && (
             <button
               type="button"
-              onClick={() => setShowAll((prev) => !prev)}
-              className="text-[9px] font-semibold uppercase tracking-[0.12em] text-emerald-400 transition hover:text-emerald-300 sm:text-[10px]"
+              onClick={() => setShowAll((current) => !current)}
+              className="inline-flex h-6 shrink-0 items-center justify-center rounded-full border border-emerald-200/80 bg-emerald-50/90 px-2.5 py-0 text-[3px] font-semibold uppercase tracking-[0.12em] text-emerald-700 shadow-sm transition-all duration-200 hover:border-emerald-300 hover:bg-[#ECFDF5] active:scale-[0.98] sm:h-7 sm:text-[6.5px]"
             >
-              {showAll ? "Less" : "All"}
+              {showAll ? "View Less" : "View All"}
             </button>
           )}
 
@@ -213,7 +227,7 @@ const CompetitionSection = ({
           ref={sliderRef}
           className="
             flex
-            gap-3
+            gap-2
             overflow-x-auto
             pb-2
             snap-x
@@ -238,8 +252,13 @@ const CompetitionSection = ({
             return (
               <div
                 key={id}
-                className="w-[82vw] max-w-[320px] min-w-0 shrink-0 snap-start transition-all duration-300 ease-out sm:w-full sm:max-w-none sm:min-w-0 md:min-w-0"
-                style={{ animation: "cardFade 0.28s ease-out both" }}
+                className="shrink-0 snap-start transition-all duration-300 ease-out sm:w-full sm:max-w-none sm:min-w-0 md:min-w-0"
+                style={{
+                  width: "calc(50% - 0.25rem)",
+                  minWidth: "calc(50% - 0.25rem)",
+                  flex: "0 0 calc(50% - 0.25rem)",
+                  animation: "cardFade 0.28s ease-out both",
+                }}
               >
                 <CompetitionCard
                   item={item}

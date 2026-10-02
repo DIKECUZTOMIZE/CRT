@@ -5,6 +5,8 @@ import { useAuthForm } from "../../hook/useAuthForm.jsx";
 import AuthCloseButton from "../components/AuthCloseButton.jsx";
 import PasswordField from "../components/PasswordField.jsx";
 
+const passwordRequirementsMessage = "Password must be at least 12 characters with uppercase, lowercase, a number, and a special character.";
+
 const UserRegister = ({ onClose }) => {
     const { error, isSubmitting, submit } = useAuthForm("user-register", "/profile");
     const [formData, setFormData] = useState({ username: "", email: "", password: "" });
@@ -12,6 +14,28 @@ const UserRegister = ({ onClose }) => {
     const updateField = (event) => {
         const { name, value } = event.target;
         setFormData((current) => ({ ...current, [name]: value }));
+    };
+
+    const handleSubmit = (event) => {
+        event?.preventDefault?.();
+
+        const payload = {
+            username: formData.username.trim(),
+            email: formData.email.trim().toLowerCase(),
+            password: formData.password,
+        };
+
+        void submit(payload);
+    };
+
+    const handleSubmitClick = (event) => {
+        const form = event?.currentTarget?.form;
+        if (!form || typeof form.requestSubmit !== "function") {
+            return;
+        }
+
+        event.preventDefault();
+        form.requestSubmit();
     };
 
     return (
@@ -40,10 +64,7 @@ const UserRegister = ({ onClose }) => {
                     </div>
 
                     <form
-                        onSubmit={(event) => {
-                            event.preventDefault();
-                            void submit(formData);
-                        }}
+                        onSubmit={handleSubmit}
                         className="relative space-y-5 bg-slate-900/80 p-6 sm:p-8 lg:p-10"
                     >
                         <AuthCloseButton onClose={onClose} />
@@ -87,7 +108,9 @@ const UserRegister = ({ onClose }) => {
                             name="password"
                             value={formData.password}
                             onChange={updateField}
-                            minLength={8}
+                            minLength={12}
+                            pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{12,128}$"
+                            title={passwordRequirementsMessage}
                             autoComplete="new-password"
                             className="bg-slate-950/70"
                         />
@@ -95,6 +118,7 @@ const UserRegister = ({ onClose }) => {
                         {error && <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{error}</p>}
                         <button
                             type="submit"
+                            onClick={handleSubmitClick}
                             disabled={isSubmitting}
                             className="h-12 w-full rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-500 font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:brightness-110 disabled:opacity-60"
                         >

@@ -1,7 +1,28 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 
 import { getCurrentUser, login, logout, registerOrganizer } from "../api/auth.api.js";
-import { isOrganizerRole } from "../../../app/utils/roleUtils.js";
+
+const hasPortalRole = (user, expectedRole) => {
+  if (!user || typeof user !== "object") {
+    return false;
+  }
+
+  const normalizedExpectedRole = String(expectedRole ?? "").trim().toUpperCase();
+  if (!normalizedExpectedRole) {
+    return false;
+  }
+
+  const candidateRoles = Array.isArray(user.roles)
+    ? user.roles
+    : Array.isArray(user.role)
+      ? user.role
+      : [user.role];
+
+  return candidateRoles
+    .filter(Boolean)
+    .map((role) => String(role).trim().toUpperCase())
+    .includes(normalizedExpectedRole);
+};
 
 const extractUserFromResponse = (payload) => {
   if (!payload) return null;
@@ -22,7 +43,8 @@ export const bootstrapAuth = createAsyncThunk(
     try {
       const result = await getCurrentUser();
       const user = extractUserFromResponse(result);
-      return isOrganizerRole(user?.role) ? user : null;
+      const safeUser = user && hasPortalRole(user, "ORGANIZER") ? user : null;
+      return safeUser;
     } catch (error) {
       if (error.status === 401) {
         return null;
@@ -38,10 +60,11 @@ export const loginUser = createAsyncThunk(
     try {
       const result = await login(credentials);
       const user = extractUserFromResponse(result);
-      if (!isOrganizerRole(user?.role)) {
+      const safeUser = user && hasPortalRole(user, "ORGANIZER") ? user : null;
+      if (!safeUser) {
         return rejectWithValue("This account does not have organizer access");
       }
-      return user;
+      return safeUser;
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -54,10 +77,11 @@ export const registerOrganizerAccount = createAsyncThunk(
     try {
       const result = await registerOrganizer(account);
       const user = extractUserFromResponse(result);
-      if (!isOrganizerRole(user?.role)) {
+      const safeUser = user && hasPortalRole(user, "ORGANIZER") ? user : null;
+      if (!safeUser) {
         return rejectWithValue("This account does not have organizer access");
       }
-      return user;
+      return safeUser;
     } catch (error) {
       return rejectWithValue(error.message);
     }

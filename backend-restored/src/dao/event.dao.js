@@ -23,9 +23,12 @@ const normalizeManualStatus = (value) => {
 };
 
 export const createEvent = (eventData) => {
-    const rawStatus = normalizeManualStatus(eventData.status || "upcoming");
-    const isManualStatus = ["upcoming", "live", "completed", "ended", "cancelled", "postponed"].includes(rawStatus);
-    const nextStatus = isManualStatus ? rawStatus : "upcoming";
+    const statusValue = typeof eventData?.status === "string" ? eventData.status.trim() : "";
+    const rawStatus = normalizeManualStatus(statusValue || "");
+    const isExplicitManualStatus = ["upcoming", "live", "completed", "ended", "cancelled", "postponed"].includes(rawStatus);
+    const nextStatus = isExplicitManualStatus && rawStatus !== "upcoming"
+        ? rawStatus
+        : deriveEventStatus({ ...eventData, status: rawStatus || "upcoming" });
 
     return EventModel.create({ ...eventData, status: nextStatus });
 };
@@ -33,7 +36,7 @@ export const createEvent = (eventData) => {
 export const updateEventByIdForOrganizer = async (organizerId, eventId, eventData) => {
     const nextPayload = { ...eventData };
     if (nextPayload.status) {
-        nextPayload.status = deriveEventStatus({ ...nextPayload, status: nextPayload.status });
+        nextPayload.status = normalizeManualStatus(nextPayload.status);
     }
 
     return EventModel.findOneAndUpdate(
@@ -43,14 +46,26 @@ export const updateEventByIdForOrganizer = async (organizerId, eventId, eventDat
     ).lean();
 };
 
-export const getEventsByOrganizer = (organizerId) =>
-    EventModel.find({ organizerId })
+export const getEventsByOrganizer = async (organizerId) => {
+    const events = await EventModel.find({ organizerId })
         .sort({ createdAt: -1 })
         .lean();
 
-export const getEventByIdForOrganizer = (organizerId, eventId) =>
-    EventModel.findOne({ _id: eventId, organizerId })
-        .lean();
+    return events.map((event) => ({
+        ...event,
+        status: deriveEventStatus(event),
+    }));
+};
+
+export const getEventByIdForOrganizer = async (organizerId, eventId) => {
+    const event = await EventModel.findOne({ _id: eventId, organizerId }).lean();
+    if (!event) return null;
+
+    return {
+        ...event,
+        status: deriveEventStatus(event),
+    };
+};
 
 export const deleteEventByIdForOrganizer = (organizerId, eventId) =>
     EventModel.findOneAndDelete({ _id: eventId, organizerId })

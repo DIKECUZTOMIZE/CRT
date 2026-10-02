@@ -40,10 +40,11 @@ export const Home = ({ initialLoginOpen = false, initialRegisterOpen = false }) 
     handleToggleSave,
     closeAuthModal,
   } = useHomePage({ initialLoginOpen, initialRegisterOpen });
+  const shouldSkipHomeLoginModal = import.meta.env.DEV && window.location.pathname === "/";
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      {!authUser && isAuthModalOpen && (
+    <div className="min-h-screen bg-[#FAFCFA] text-slate-900">
+      {!authUser && isAuthModalOpen && !shouldSkipHomeLoginModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm">
           <div className="h-full w-full overflow-y-auto">
             {initialRegisterOpen ? (
@@ -65,7 +66,7 @@ export const Home = ({ initialLoginOpen = false, initialRegisterOpen = false }) 
         slides={homeSlides}
       />
 
-      <main className="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full max-w-7xl space-y-4 px-3 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-2 sm:space-y-6 sm:px-5 lg:px-8">
         {isLoading ? (
           <div className="flex h-64 items-center justify-center">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent" />
@@ -80,16 +81,15 @@ export const Home = ({ initialLoginOpen = false, initialRegisterOpen = false }) 
               }
 
               return (
-                <section key={key}>
-                  <SectionComponent
-                    competitions={homeSections[key]}
-                    category={selectedCategory}
-                    search={searchQuery}
-                    filter={activeQuickFilter}
-                    savedIds={savedIds}
-                    onToggleSave={handleToggleSave}
-                  />
-                </section>
+                <SectionComponent
+                  key={key}
+                  competitions={homeSections[key]}
+                  category={selectedCategory}
+                  search={searchQuery}
+                  filter={activeQuickFilter}
+                  savedIds={savedIds}
+                  onToggleSave={handleToggleSave}
+                />
               );
             })}
 

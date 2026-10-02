@@ -4,3 +4,5 @@ export const ROLES = {
     ORGANIZER: "ORGANIZER",
     USER: "USER",
 };
+
+export const PORTAL_ROLE_ORDER = [ROLES.USER, ROLES.ORGANIZER, ROLES.ADMIN];

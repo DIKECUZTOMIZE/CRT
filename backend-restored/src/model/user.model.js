@@ -1,7 +1,39 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-import { ROLES } from "../constant/model.constant.js";
+import { PORTAL_ROLE_ORDER, ROLES } from "../constant/model.constant.js";
+
+const normalizeRoles = (value) => {
+    const values = Array.isArray(value) ? value : [value];
+    const normalized = values
+        .map((role) => String(role ?? "").trim().toUpperCase())
+        .filter(Boolean)
+        .filter((role) => Object.values(ROLES).includes(role));
+
+    return [...new Set(normalized)];
+};
+
+const resolveRoles = (doc) => {
+    const legacyRole = String(doc.role ?? "").trim().toUpperCase();
+    const explicitRoles = normalizeRoles(doc.roles);
+    const combinedRoles = [...new Set([
+        ...explicitRoles,
+        ...(legacyRole ? [legacyRole] : []),
+        ROLES.USER,
+        ROLES.ORGANIZER,
+    ])].filter((role) => Object.values(ROLES).includes(role));
+
+    const preferredRole = legacyRole && Object.values(ROLES).includes(legacyRole)
+        ? legacyRole
+        : combinedRoles[0] || ROLES.USER;
+
+    const orderedRoles = preferredRole && combinedRoles.includes(preferredRole)
+        ? [preferredRole, ...PORTAL_ROLE_ORDER.filter((role) => role !== preferredRole && combinedRoles.includes(role))]
+        : PORTAL_ROLE_ORDER.filter((role) => combinedRoles.includes(role));
+
+    doc.roles = [...new Set(orderedRoles.length ? orderedRoles : [ROLES.USER])];
+    doc.role = doc.roles[0] || ROLES.USER;
+};
 
 const userSchema = new mongoose.Schema({
     username: {
@@ -31,6 +63,12 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: Object.values(ROLES),
         default: ROLES.USER
+    },
+    roles: {
+        type: [String],
+        enum: Object.values(ROLES),
+        default: undefined,
+        set: (value) => normalizeRoles(value),
     },
     fullName: {
         type: String,
@@ -88,6 +126,13 @@ const userSchema = new mongoose.Schema({
         default: "",
         trim: true,
     },
+    location: {
+        country: { type: String, default: "India", trim: true },
+        state: { type: String, default: "India", trim: true },
+        city: { type: String, default: "All India", trim: true },
+        district: { type: String, default: "", trim: true },
+        isSelected: { type: Boolean, default: false },
+    },
     bio: {
         type: String,
         default: "",
@@ -139,6 +184,13 @@ userSchema.index(
     }
 );
 
+userSchema.index(
+    { roles: 1 },
+    {
+        name: "idx_users_roles",
+    }
+);
+
 userSchema.pre('save', async function () {
     if (this.isModified('username')) {
         this.username = String(this.username ?? "").trim();
@@ -156,6 +208,25 @@ userSchema.pre('save', async function () {
     if (this.isModified('googleId')) {
         const normalizedGoogleId = String(this.googleId ?? "").trim();
         this.googleId = normalizedGoogleId || undefined;
+    }
+
+    if (this.isModified('role') || this.isModified('roles')) {
+        resolveRoles(this);
+    }
+
+    if (!this.roles || !this.roles.length) {
+        this.roles = [this.role || ROLES.USER];
+        this.role = this.roles[0];
+    }
+
+    const preferredRole = String(this.role ?? "").trim().toUpperCase();
+    const orderedRoles = preferredRole && Object.values(ROLES).includes(preferredRole)
+        ? [preferredRole, ...PORTAL_ROLE_ORDER.filter((role) => role !== preferredRole && this.roles.includes(role))]
+        : PORTAL_ROLE_ORDER.filter((role) => this.roles.includes(role));
+
+    if (orderedRoles.length) {
+        this.roles = [...new Set(orderedRoles)];
+        this.role = this.roles[0];
     }
 })
 

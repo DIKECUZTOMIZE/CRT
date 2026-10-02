@@ -231,10 +231,10 @@ export const PrizeSection = ({ prizes = [] }) => {
     ) {
       return {
         cardStyle:
-          "border-amber-500/40 bg-gradient-to-b from-amber-500/10 via-amber-950/15 to-slate-950 shadow-sm shadow-amber-500/5 hover:border-amber-400/80",
-        badgeStyle: "bg-amber-500/20 text-amber-300 border-amber-500/30",
-        iconColor: "text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.3)]",
-        amountColor: "text-amber-200",
+          "border-amber-200 bg-gradient-to-b from-amber-50 via-white to-[#F8FBF9] shadow-sm shadow-amber-200/50 hover:border-amber-300",
+        badgeStyle: "bg-amber-100 text-amber-700 border-amber-200",
+        iconColor: "text-amber-600 drop-shadow-[0_0_6px_rgba(245,158,11,0.2)]",
+        amountColor: "text-amber-700",
       };
     }
 
@@ -246,10 +246,10 @@ export const PrizeSection = ({ prizes = [] }) => {
     ) {
       return {
         cardStyle:
-          "border-slate-400/35 bg-gradient-to-b from-slate-400/10 via-slate-900/20 to-slate-950 hover:border-slate-300/80",
-        badgeStyle: "bg-slate-400/20 text-slate-200 border-slate-400/30",
-        iconColor: "text-slate-300",
-        amountColor: "text-slate-100",
+          "border-slate-200 bg-gradient-to-b from-slate-50 via-white to-[#F8FBF9] hover:border-slate-300",
+        badgeStyle: "bg-slate-100 text-slate-700 border-slate-200",
+        iconColor: "text-slate-600",
+        amountColor: "text-slate-800",
       };
     }
 
@@ -260,19 +260,19 @@ export const PrizeSection = ({ prizes = [] }) => {
     ) {
       return {
         cardStyle:
-          "border-amber-700/35 bg-gradient-to-b from-amber-800/10 via-slate-900/20 to-slate-950 hover:border-amber-600/60",
-        badgeStyle: "bg-amber-800/20 text-amber-200 border-amber-700/30",
+          "border-amber-200 bg-gradient-to-b from-amber-50 via-white to-[#F8FBF9] hover:border-amber-300",
+        badgeStyle: "bg-amber-100 text-amber-700 border-amber-200",
         iconColor: "text-amber-600",
-        amountColor: "text-amber-100/90",
+        amountColor: "text-amber-700",
       };
     }
 
     return {
       cardStyle:
-        "border-slate-800/80 bg-slate-950/60 hover:border-slate-700 hover:bg-slate-950",
-      badgeStyle: "bg-slate-800/80 text-slate-300 border-slate-700/50",
-      iconColor: "text-emerald-400",
-      amountColor: "text-slate-200",
+        "border-emerald-100 bg-[#F8FBF9] hover:border-emerald-200 hover:bg-[#ECFDF5]",
+      badgeStyle: "bg-[#ECFDF5] text-emerald-700 border-emerald-200",
+      iconColor: "text-emerald-600",
+      amountColor: "text-slate-800",
     };
   };
 
@@ -314,20 +314,20 @@ export const PrizeSection = ({ prizes = [] }) => {
   }, 0);
 
   return (
-    <section className="relative overflow-hidden space-y-3 rounded-xl border border-slate-800/80 bg-slate-900/90 p-3 shadow-xl backdrop-blur-xl sm:p-4">
+    <section className="relative overflow-hidden space-y-3 rounded-xl border border-emerald-100 bg-white p-3 shadow-[0_10px_26px_rgba(15,118,110,0.05)] backdrop-blur-xl sm:p-4">
       {/* SECTION HEADER */}
-      <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+      <div className="flex items-center justify-between border-b border-emerald-100 pb-2">
         <div className="flex items-center gap-1.5">
-          <Trophy className="h-3.5 w-3.5 shrink-0 text-amber-400" />
-          <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-200 sm:text-xs">
+          <Trophy className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+          <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 sm:text-xs">
             Prizes & Rewards
           </h3>
         </div>
 
         {totalPrizeAmount > 0 && (
-          <div className="flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5">
-            <Sparkles className="h-2.5 w-2.5 text-amber-400" />
-            <span className="text-[9px] font-extrabold uppercase tracking-wide text-amber-300 sm:text-[10px]">
+          <div className="flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5">
+            <Sparkles className="h-2.5 w-2.5 text-amber-600" />
+            <span className="text-[9px] font-extrabold uppercase tracking-wide text-amber-700 sm:text-[10px]">
               Pool:{" "}
               {formatCurrency(
                 totalPrizeAmount,
@@ -363,8 +363,8 @@ export const PrizeSection = ({ prizes = [] }) => {
                 onClick={() => setActiveTab(idx)}
                 className={`flex shrink-0 snap-start items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-all duration-150 ${
                   isActive
-                    ? "border-amber-500/40 bg-amber-500/10 text-amber-300 shadow-sm"
-                    : "border-slate-800/80 bg-slate-950/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                    ? "border-amber-200 bg-amber-50 text-amber-700 shadow-sm"
+                    : "border-emerald-100 bg-[#F8FBF9] text-slate-600 hover:border-emerald-200 hover:text-slate-900"
                 }`}
               >
                 <CategoryIcon className="h-3 w-3" />
@@ -392,16 +392,16 @@ export const PrizeSection = ({ prizes = [] }) => {
               {/* CATEGORY INFO HEADER */}
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-emerald-200 bg-[#ECFDF5] text-emerald-600">
                     <CategoryIcon className="h-3 w-3" />
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-200 sm:text-xs truncate">
+                    <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-900 sm:text-xs truncate">
                       {getDynamicCategoryTitle(category)}
                     </h4>
                     {category.description && (
-                      <p className="truncate text-[9px] font-medium text-slate-400">
+                      <p className="truncate text-[9px] font-medium text-slate-500">
                         {category.description}
                       </p>
                     )}
@@ -410,7 +410,7 @@ export const PrizeSection = ({ prizes = [] }) => {
 
                 {/* SOLO OR CUSTOM TYPE BADGE */}
                 {category.isSoloOnly && (
-                  <span className="shrink-0 rounded-md border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[8px] font-bold uppercase text-sky-300">
+                  <span className="shrink-0 rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[8px] font-bold uppercase text-sky-700">
                     Solo Only
                   </span>
                 )}
@@ -466,8 +466,8 @@ export const PrizeSection = ({ prizes = [] }) => {
 
                           {/* DYNAMIC 18+ BADGE */}
                           {is18Plus && (
-                            <span className="inline-flex items-center gap-0.5 rounded-full border border-rose-500/40 bg-rose-500/15 px-1.5 py-0.5 text-[8px] font-black uppercase text-rose-300">
-                              <ShieldAlert className="h-2.5 w-2.5 text-rose-400" />
+                            <span className="inline-flex items-center gap-0.5 rounded-full border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[8px] font-black uppercase text-rose-700">
+                              <ShieldAlert className="h-2.5 w-2.5 text-rose-600" />
                               18+
                             </span>
                           )}
@@ -493,13 +493,13 @@ export const PrizeSection = ({ prizes = [] }) => {
                         </p>
 
                         {prizeTitle && prizeTitle !== "Prize" && (
-                          <p className="text-[9px] font-medium leading-tight text-slate-300">
+                          <p className="text-[9px] font-medium leading-tight text-slate-600">
                             {prizeTitle}
                           </p>
                         )}
 
                         {prize.note && (
-                          <p className="text-[9px] font-medium leading-tight text-slate-400">
+                          <p className="text-[9px] font-medium leading-tight text-slate-500">
                             {prize.note}
                           </p>
                         )}
@@ -507,7 +507,7 @@ export const PrizeSection = ({ prizes = [] }) => {
 
                       {/* PERKS / INCENTIVES */}
                       {perksList.length > 0 && (
-                        <div className="mt-1 space-y-1 border-t border-slate-800/80 pt-1.5">
+                        <div className="mt-1 space-y-1 border-t border-emerald-100 pt-1.5">
                           <p className="text-[8px] font-extrabold uppercase tracking-wider text-slate-500">
                             Perks
                           </p>
@@ -515,9 +515,9 @@ export const PrizeSection = ({ prizes = [] }) => {
                             {perksList.map((perk, pIdx) => (
                               <li
                                 key={pIdx}
-                                className="flex items-start gap-1 text-[9px] leading-tight text-slate-300"
+                                className="flex items-start gap-1 text-[9px] leading-tight text-slate-600"
                               >
-                                <Star className="mt-0.5 h-2 w-2 shrink-0 text-emerald-400" />
+                                <Star className="mt-0.5 h-2 w-2 shrink-0 text-emerald-600" />
                                 <span className="line-clamp-1">
                                   {perk.trim()}
                                 </span>

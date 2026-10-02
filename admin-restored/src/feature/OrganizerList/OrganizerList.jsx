@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Eye, Loader2, PencilLine, Plus, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
+import { API_BASE_URL } from "../../app/config/apiBase.js";
 
 const emptyOrganizerForm = {
   username: "",
@@ -109,7 +110,7 @@ export const OrganizerList = () => {
     setUploadingAvatar(true);
 
     try {
-      const response = await fetch("http://localhost:3000/api/upload/image", {
+      const response = await fetch(`${API_BASE_URL}/api/upload/image`, {
         method: "POST",
         credentials: "include",
         body: form,
@@ -138,7 +139,7 @@ export const OrganizerList = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3000/api/admin/users?role=ORGANIZER", {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users?role=ORGANIZER`, {
         method: "GET",
         credentials: "include",
         headers: { Accept: "application/json" },
@@ -246,7 +247,7 @@ export const OrganizerList = () => {
 
     try {
       const isEdit = formMode === "edit" && selectedOrganizer;
-      const endpoint = isEdit ? `http://localhost:3000/api/admin/organizers/${selectedOrganizer.id || selectedOrganizer._id}` : "http://localhost:3000/api/admin/organizers";
+      const endpoint = isEdit ? `${API_BASE_URL}/api/admin/organizers/${selectedOrganizer.id || selectedOrganizer._id}` : `${API_BASE_URL}/api/admin/organizers`;
       const method = isEdit ? "PUT" : "POST";
 
       const body = { ...nextPayload };
@@ -301,7 +302,7 @@ export const OrganizerList = () => {
     if (!confirmed) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/organizers/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/organizers/${id}`, {
         method: "DELETE",
         credentials: "include",
         headers: { Accept: "application/json" },

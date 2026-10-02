@@ -13,6 +13,7 @@ import FormSection from "../common/FormSection";
 
 export default function EventRules() {
   const { register, watch, control, setValue } = useFormContext();
+  const isEditing = watch("isEditing");
 
   const {
     fields: ruleFields,
@@ -46,7 +47,7 @@ export default function EventRules() {
     },
   ];
 
-  const displayRules = ruleFields.length > 0 ? ruleFields : defaultRules;
+  const displayRules = ruleFields.length > 0 ? ruleFields : isEditing ? [] : defaultRules;
   const activeRulesCount = displayRules.length;
 
   const standardCategories = [

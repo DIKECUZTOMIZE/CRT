@@ -59,23 +59,84 @@ const normalizeRating = (value) => {
   return Math.min(Math.max(rating, 0), 5);
 };
 
-const normalizeAmount = (value) => {
-  if (value === null || value === undefined || value === "") return "Free";
+const FALLBACK_DISPLAY_VALUES = new Set([
+  "competition",
+  "untitled event",
+  "tba",
+  "location tba",
+  "no prize pool",
+  "free",
+  "sold out",
+  "available",
+  "limited seats",
+  "open registration",
+  "not available",
+  "general",
+  "unknown",
+  "n/a",
+  "na",
+  "0",
+  "0.0",
+]);
+
+const isMeaningfulValue = (value) => {
+  if (value === null || value === undefined) return false;
 
   if (typeof value === "number") {
-    if (!Number.isFinite(value) || value <= 0) return "Free";
-    return `₹${value.toLocaleString("en-IN")}`;
+    return Number.isFinite(value);
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    return !FALLBACK_DISPLAY_VALUES.has(trimmed.toLowerCase());
+  }
+
+  return Boolean(value);
+};
+
+const normalizeAmount = (value) => {
+  if (value === null || value === undefined || value === "") return "";
+
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) return "";
+    return value === 0 ? "Free" : `₹${value.toLocaleString("en-IN")}`;
   }
 
   const trimmed = String(value).trim();
-  if (!trimmed || trimmed.toLowerCase() === "free") return "Free";
+  if (!trimmed) return "";
+
+  const lowered = trimmed.toLowerCase();
+  if (lowered === "free") return "Free";
+  if (lowered === "0" || lowered === "0.0" || lowered === "0.00") return "Free";
 
   if (trimmed.startsWith("₹")) return trimmed;
   if (/^\d+(\.\d+)?$/.test(trimmed)) {
-    return `₹${Number(trimmed).toLocaleString("en-IN")}`;
+    const numericValue = Number(trimmed);
+    return numericValue === 0 ? "Free" : `₹${numericValue.toLocaleString("en-IN")}`;
   }
 
   return trimmed;
+};
+
+const getFeeChipText = (value) => {
+  const normalized = normalizeAmount(value);
+  if (!normalized || normalized === "Free") return "Free";
+  return "Paid";
+};
+
+const isDisplayableFeeValue = (value) => {
+  if (value === null || value === undefined || value === "") return false;
+
+  const trimmed = String(value).trim();
+  if (!trimmed) return false;
+
+  const lowered = trimmed.toLowerCase();
+  if (lowered === "free") return true;
+  if (lowered === "0" || lowered === "0.0" || lowered === "0.00") return true;
+  if (/^\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed) >= 0;
+
+  return !FALLBACK_DISPLAY_VALUES.has(lowered);
 };
 
 const normalizePrizeDisplay = (value) => {
@@ -187,27 +248,52 @@ export const CompetitionCard = ({
   onClick,
 }) => {
   const eventId = item?.id ?? item?._id;
-  const ratingValue = normalizeRating(item?.rating ?? item?.avgRating ?? item?.ratingScore ?? 0);
+  const mediaSrc = item?.banner || item?.bannerUrl || item?.cardImageUrl;
+  const hasMedia = Boolean(mediaSrc && String(mediaSrc).trim());
+  const hasTitle = isMeaningfulValue(item?.title) && !FALLBACK_DISPLAY_VALUES.has(String(item?.title).trim().toLowerCase());
+  const hasCategory = isMeaningfulValue(item?.category) && !FALLBACK_DISPLAY_VALUES.has(String(item?.category).trim().toLowerCase());
+  const rawRatingValue = item?.rating ?? item?.avgRating ?? item?.ratingScore;
+  const ratingValue = rawRatingValue === null || rawRatingValue === undefined || rawRatingValue === "" ? 0 : normalizeRating(rawRatingValue);
   const reviewCount = Number(item?.reviewsCount ?? item?.reviewCount ?? item?.ratingCount ?? 0) || 0;
-  const locationValue = normalizeLocationValue(
+  const hasRating = rawRatingValue !== null && rawRatingValue !== undefined && rawRatingValue !== "" && Number.isFinite(Number(rawRatingValue)) && Number(rawRatingValue) > 0;
+  const dateSource = item?.date ?? item?.eventDate ?? item?.eventStart ?? item?.registrationStart;
+  const hasDate = isMeaningfulValue(dateSource) && !FALLBACK_DISPLAY_VALUES.has(String(dateSource).trim().toLowerCase());
+  const locationParts = [item?.location, item?.venueAddress, item?.city, item?.district, item?.state, item?.pinCode];
+  const hasLocation = locationParts.some((value) => {
+    if (value === null || value === undefined) return false;
+    if (typeof value === "string") return isMeaningfulValue(value);
+    return Boolean(value);
+  });
+  const locationValue = hasLocation ? normalizeLocationValue(
     item?.location,
     item?.venueAddress,
     item?.city,
     item?.district,
     item?.state,
     item?.pinCode,
-  );
-  const displayLocation = locationValue.short;
-  const fullLocation = locationValue.full;
-  const displayDate = formatCardDate(item?.date ?? item?.eventDate ?? item?.eventStart ?? item?.registrationStart ?? "TBA");
-  const seatAvailabilityText = getSeatAvailabilityText(item);
-  const prizeLabel = normalizePrizeDisplay(item?.prize ?? item?.prizePool ?? item?.totalPrizePool);
-  const viewCount = Number(item?.viewsCount ?? item?.viewCount ?? item?.impressions ?? item?.participantsCount ?? item?.registeredCount ?? 0) || 0;
+  ) : { short: "", full: "" };
+  const displayLocation = isMeaningfulValue(locationValue.short) ? locationValue.short : "";
+  const fullLocation = isMeaningfulValue(locationValue.full) ? locationValue.full : "";
+  const displayDate = hasDate ? formatCardDate(dateSource) : "";
+  const seatAvailabilitySource = item?.seatAvailability ?? item?.seat_status ?? item?.customSeatDetails ?? item?.totalSeats ?? item?.seatsAvailable ?? item?.availableSeats;
+  const hasSeatStatus = isMeaningfulValue(seatAvailabilitySource) && !FALLBACK_DISPLAY_VALUES.has(String(seatAvailabilitySource).trim().toLowerCase());
+  const seatAvailabilityText = hasSeatStatus ? getSeatAvailabilityText(item) : "";
+  const prizeSource = item?.prize ?? item?.prizePool ?? item?.totalPrizePool;
+  const hasPrize = isMeaningfulValue(prizeSource) && !FALLBACK_DISPLAY_VALUES.has(String(prizeSource).trim().toLowerCase());
+  const prizeLabel = hasPrize ? normalizePrizeDisplay(prizeSource) : "";
+  const entryFeeValue = item?.entryFee ?? item?.fee ?? item?.entry;
+  const hasEntryFee = isDisplayableFeeValue(entryFeeValue);
+  const rawViewCount = item?.viewsCount ?? item?.viewCount ?? item?.impressions ?? item?.participantsCount ?? item?.registeredCount;
+  const viewCount = Number(rawViewCount ?? 0);
+  const hasViews = rawViewCount !== null && rawViewCount !== undefined && rawViewCount !== "" && Number.isFinite(viewCount) && viewCount >= 0;
   // const joinedCount = Number(item?.participantsCount ?? item?.registeredCount ?? item?.attendees ?? 0) || 0;
 
   const handleCardClick = () => {
     onClick?.(item);
   };
+
+  const normalizedStatus = typeof item?.status === "string" ? item.status.trim().toLowerCase() : "";
+  const hasStatus = Boolean(normalizedStatus) && !FALLBACK_DISPLAY_VALUES.has(normalizedStatus);
 
   const handleSave = (e) => {
     e.stopPropagation();
@@ -228,111 +314,183 @@ export const CompetitionCard = ({
     onClick?.(item);
   };
 
+  const mediaRatingBadge = hasRating ? (
+    <div className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/85 px-1.5 py-0.5 text-[9px] font-semibold text-slate-800 shadow-[0_4px_10px_rgba(15,23,42,0.12)] backdrop-blur-sm sm:text-[10px]">
+      <Star className="h-3 w-3 fill-amber-400 text-amber-400 sm:h-3.5 sm:w-3.5" />
+      <span>{ratingValue.toFixed(1)}</span>
+      {reviewCount > 0 && <span className="text-slate-500">({reviewCount})</span>}
+    </div>
+  ) : null;
+
+  const mediaTopControls = (
+    <div className="absolute inset-x-2.5 top-2.5 z-20 flex items-center justify-between gap-2 sm:inset-x-3 sm:top-3">
+      {hasStatus ? (
+        <div className="relative z-10 -translate-y-[1px]">
+          <StatusBadge status={item?.status} />
+        </div>
+      ) : (
+        <div className="h-6 w-12 rounded-full bg-white/10 backdrop-blur-sm" />
+      )}
+
+      <div className="relative z-10 -translate-y-[1px]">
+        <SaveButton
+          size="sm"
+          isSaved={isSaved}
+          onToggle={handleSave}
+          className="border border-white/20 bg-slate-950/30 text-white backdrop-blur-md shadow-[0_4px_12px_rgba(0,0,0,0.18)]"
+        />
+      </div>
+    </div>
+  );
+
+  const mediaViewCountBadge = hasViews ? (
+    <div className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-slate-950/55 px-1.5 py-0.5 text-[9px] font-semibold text-white shadow-[0_4px_10px_rgba(15,23,42,0.14)] backdrop-blur-sm sm:text-[10px]">
+      <Eye className="h-3 w-3 text-white sm:h-3.5 sm:w-3.5" />
+      <span>{formatCompactMetric(viewCount)}</span>
+    </div>
+  ) : null;
+
   return (
     <article
       onClick={handleCardClick}
       className="
         group relative w-full min-w-0 max-w-full cursor-pointer overflow-hidden
-        rounded-[1.25rem] border border-slate-800/80 bg-slate-900/80
-        shadow-[0_18px_40px_rgba(2,6,23,0.32)] backdrop-blur-sm
-        transition-all duration-300 ease-out
-        hover:border-emerald-400/60 hover:shadow-[0_22px_60px_rgba(16,185,129,0.12)]
-        sm:rounded-[1.5rem] sm:hover:-translate-y-1
+        rounded-[1.15rem] border border-slate-200/80 bg-white/95
+        shadow-[0_10px_24px_rgba(15,23,42,0.06)]
+        transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_14px_28px_rgba(15,23,42,0.08)]
+        active:scale-[0.99]
+        sm:rounded-[1.35rem]
         [word-break:break-word]
       "
     >
-      <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/0 via-emerald-500/0 to-slate-950/70" />
+      {hasMedia ? (
+        <div className="relative overflow-hidden rounded-t-[1.25rem] sm:rounded-t-[1.5rem]">
+          <div className="relative aspect-[16/10] w-full overflow-hidden sm:aspect-[16/9]">
+            <ImageWithFallback
+              src={mediaSrc}
+              alt="Competition banner"
+              aspectRatio="aspect-[16/10]"
+              loading="eager"
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
+            />
 
-      <div className="relative overflow-hidden rounded-t-[1.25rem] sm:rounded-t-[1.5rem]">
-        <div className="relative aspect-[16/10] w-full overflow-hidden sm:aspect-[16/9]">
-          <ImageWithFallback
-            src={item?.banner || item?.bannerUrl || item?.cardImageUrl}
-            alt="Competition banner"
-            aspectRatio="aspect-[16/10]"
-            loading="eager"
-            fallbackSrc="https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=1200&auto=format&fit=crop&q=80"
-            className="scale-105 transition-transform duration-500 group-hover:scale-110"
-          />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-slate-950/10 to-transparent" />
+            {mediaTopControls}
 
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/15 to-transparent" />
-
-          <div className="absolute left-2.5 top-2.5 z-10 flex items-center gap-2 sm:left-3 sm:top-3">
-            <StatusBadge status={item?.status} />
-          </div>
-
-          <div className="absolute right-2.5 top-2.5 z-10 sm:right-3 sm:top-3">
-            <SaveButton size="sm" isSaved={isSaved} onToggle={handleSave} />
-          </div>
-
-          <div className="absolute inset-x-2.5 bottom-2.5 z-10 flex items-center justify-between gap-2 sm:inset-x-3 sm:bottom-3">
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-slate-950/85 px-2 py-1 text-[9px] font-semibold text-amber-300 backdrop-blur-sm sm:px-2.5 sm:text-[10px]">
-              <Star className="h-3 w-3 fill-amber-400 text-amber-400 sm:h-3.5 sm:w-3.5" />
-              <span>{ratingValue.toFixed(1)}</span>
-              {reviewCount > 0 && <span className="text-slate-400">({reviewCount})</span>}
-            </div>
-
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-slate-950/85 px-2 py-1 text-[9px] font-semibold text-emerald-300 backdrop-blur-sm sm:px-2.5 sm:text-[10px]">
-              <Eye className="h-3 w-3 text-emerald-400 sm:h-3.5 sm:w-3.5" />
-              <span>{formatCompactMetric(viewCount)}</span>
-            </div>
+            {(hasRating || hasViews) && (
+              <div className="absolute inset-x-2.5 bottom-2.5 z-20 flex items-center justify-between gap-2 sm:inset-x-3 sm:bottom-3">
+                {mediaRatingBadge}
+                {mediaViewCountBadge}
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="relative overflow-hidden rounded-t-[1.25rem] sm:rounded-t-[1.5rem]">
+          <div className="relative aspect-[16/10] w-full overflow-hidden bg-gradient-to-br from-slate-200 via-slate-100 to-slate-300 sm:aspect-[16/9]">
+            <div className="absolute inset-0 bg-[linear-gradient(110deg,rgba(255,255,255,0.15),rgba(255,255,255,0.55),rgba(255,255,255,0.15))] bg-[length:220%_100%] animate-[pulse_1.8s_ease-in-out_infinite]" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/25 via-slate-950/5 to-transparent" />
+            {mediaTopControls}
 
-      <div className="relative flex min-w-0 flex-col gap-2 p-2.5 sm:gap-3 sm:p-3.5">
-        <div className="min-w-0 space-y-1.5">
-          <div className="flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
-            <h3 className="min-w-0 flex-1 line-clamp-2 break-words text-[12px] font-bold leading-[1.35] tracking-[0.02em] text-white sm:text-[13px]">
-              {item?.title || "Competition"}
-            </h3>
-            {item?.category && (
-              <span className="w-fit self-start rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-[0.13em] text-emerald-300 sm:max-w-[40%] sm:truncate sm:px-2 sm:text-[8px]">
+            {(hasRating || hasViews) && (
+              <div className="absolute inset-x-2.5 bottom-2.5 z-20 flex items-center justify-between gap-2 sm:inset-x-3 sm:bottom-3">
+                {mediaRatingBadge}
+                {mediaViewCountBadge}
+              </div>
+            )}
+
+            <div className="absolute inset-x-3 bottom-3 h-2.5 rounded-full bg-white/55" />
+            <div className="absolute left-3 top-3 h-2.5 w-12 rounded-full bg-white/55" />
+          </div>
+        </div>
+      )}
+
+      <div className="relative flex min-w-0 flex-col gap-1.5 p-2 pb-3 sm:gap-2 sm:p-2.5 sm:pb-2.5">
+        <div className="min-w-0 space-y-1">
+          {hasTitle && (
+            <div className="min-w-0">
+              <h3 className="min-w-0 line-clamp-2 break-words text-[11px] font-semibold leading-[1.35] text-slate-900 sm:text-[13px]">
+                {item.title}
+              </h3>
+            </div>
+          )}
+
+          {hasCategory && (
+            <div className="min-w-0">
+              <span className="inline-flex rounded-full border border-emerald-100 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-emerald-700 sm:text-[10px]">
                 {item.category}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {(hasDate || hasLocation || hasSeatStatus) && (
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] text-slate-500 sm:text-[11px]">
+            {hasDate && (
+              <span className="inline-flex min-w-0 -translate-y-[1px] items-center gap-1 rounded-md bg-slate-50 px-1 py-0.5 text-slate-600">
+                <CalendarDays className="h-3 w-3 shrink-0 text-emerald-600" />
+                <span className="truncate">{displayDate}</span>
+              </span>
+            )}
+            {hasLocation && (
+              <span className="inline-flex min-w-0 -translate-y-[1px] items-center gap-1 rounded-md bg-slate-50 px-1.5 py-0.5 text-slate-600">
+                <MapPin className="h-3 w-3 shrink-0 text-emerald-600" />
+                <span title={fullLocation} className="max-w-[9rem] truncate">{displayLocation}</span>
+              </span>
+            )}
+            {hasSeatStatus && (
+              <span className="inline-flex min-w-0 items-center gap-1 rounded-md bg-slate-50 px-1.5 py-0.5 text-slate-600">
+                <Users className="h-3 w-3 shrink-0 text-emerald-600" />
+                <span className="truncate">{seatAvailabilityText}</span>
               </span>
             )}
           </div>
+        )}
 
-          <div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-slate-700/80 bg-slate-950/70 px-2 py-1.5 text-[10px] text-slate-200 shadow-inner shadow-slate-950/40 sm:gap-2 sm:rounded-xl sm:px-2.5 sm:text-[11px]">
-            <MapPin className="h-3.5 w-3.5 shrink-0 text-emerald-400 sm:h-4 sm:w-4" />
-            <span
-              title={fullLocation}
-              className="min-w-0 flex-1 truncate leading-snug tracking-[0.01em]"
-            >
-              {displayLocation}
-            </span>
-          </div>
-        </div>
-
-        <div className="min-w-0 space-y-1.5">
-          <div className="grid gap-1.5 rounded-lg border border-slate-700/80 bg-slate-950/70 p-1.5 text-[10px] text-slate-300 sm:rounded-xl sm:grid-cols-[1fr_auto] sm:items-center sm:gap-2 sm:px-2 sm:text-[11px]">
-            <span className="flex min-w-0 items-center gap-1.5">
-              <CalendarDays className="h-3.5 w-3.5 shrink-0 text-emerald-400 sm:h-4 sm:w-4" />
-              <span className="min-w-0 break-words leading-relaxed text-slate-200">{displayDate}</span>
-            </span>
-            <span className="flex min-w-0 items-center gap-1.5 text-slate-200">
-              <Users className="h-3.5 w-3.5 shrink-0 text-emerald-400 sm:h-4 sm:w-4" />
-              <span className="truncate leading-relaxed">{seatAvailabilityText}</span>
-            </span>
-          </div>
-
-          <div className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-slate-700/80 bg-slate-950/70 px-2 py-1.5 sm:rounded-xl sm:px-2.5">
-            <div className="flex min-w-0 items-center gap-1.5 text-[10px] text-slate-300 sm:text-[11px]">
-              <Trophy className="h-3.5 w-3.5 shrink-0 text-amber-400 sm:h-4 sm:w-4" />
-              <span className="min-w-0 break-words font-semibold text-slate-100">{prizeLabel}</span>
+        {(hasPrize) && (
+          <div className="flex min-w-0 items-end justify-between gap-2 border-t border-slate-100 pt-1.5">
+            <div className="min-w-0 space-y-0.5">
+              {hasPrize && (
+                <div className="min-w-0 text-[9px] font-medium uppercase tracking-[0.08em] text-slate-500 sm:text-[10px]">
+                  Prize
+                </div>
+              )}
+              {hasPrize && (
+                <div className="min-w-0 break-words text-[12px] font-bold text-emerald-700 sm:text-[13px]">
+                  {prizeLabel}
+                </div>
+              )}
             </div>
-            <div className="min-w-0 text-right text-[10px] text-slate-300 sm:text-[11px]">
-              <div className="text-[7px] uppercase tracking-[0.14em] text-slate-400 sm:text-[8px]">Entry</div>
-              <div className="break-words font-bold text-emerald-300">{normalizeAmount(item?.entryFee || item?.fee || item?.entry)}</div>
-            </div>
+          </div>
+        )}
+
+        <div className="relative z-20 mt-0.5 flex w-full flex-nowrap items-center justify-between gap-2 pb-1 sm:hidden">
+          <button
+            type="button"
+            onClick={handleViewClick}
+            className="inline-flex min-h-[1.6rem] flex-shrink-0 items-center justify-center gap-0.5 self-center rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-1.5 py-0.75 text-[8px] font-bold text-white shadow-[0_8px_16px_rgba(16,185,129,0.22)] ring-1 ring-emerald-600/30 transition-all duration-200 hover:from-emerald-600 hover:to-teal-700 active:scale-[0.99]"
+          >
+            <span className="text-[9px]">View Details</span> <span aria-hidden="true" className="text-[9px]">→</span>
+          </button>
+
+          <div className="ml-auto inline-flex shrink-0 items-center gap-1.5">
+            {hasEntryFee && (
+              <div className="inline-flex shrink-0 items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.75 text-[9px] font-bold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.08)]">
+                <span className="text-[7px] font-semibold uppercase tracking-[0.08em] text-slate-500">Entry</span>
+                <span className={normalizeAmount(entryFeeValue) === "Free" ? "text-emerald-600" : "text-slate-800"}>
+                  {getFeeChipText(entryFeeValue)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
         <button
           type="button"
           onClick={handleViewClick}
-          className="mt-0.5 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500 to-teal-500 px-2.5 py-2 text-[10px] font-bold text-slate-950 shadow-[0_12px_24px_rgba(16,185,129,0.2)] transition-all duration-200 hover:from-emerald-400 hover:to-teal-400 active:scale-[0.99] sm:text-xs"
+          className="mt-0.5 hidden min-h-[1.8rem] items-center justify-center gap-1 self-start rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-2.5 py-1 text-[8.5px] font-semibold text-white shadow-[0_10px_20px_rgba(16,185,129,0.22)] transition-all duration-200 hover:from-emerald-600 hover:to-teal-700 active:scale-[0.99] sm:inline-flex sm:min-h-[1.9rem] sm:text-[9.5px]"
         >
-          View details
+          View Details <span aria-hidden="true">→</span>
         </button>
       </div>
     </article>

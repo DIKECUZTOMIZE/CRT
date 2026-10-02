@@ -1,4 +1,5 @@
 import { useLoginPage } from "../../hook/useLoginPage.js";
+import { getPortalBaseUrl } from "../../../app/utils/roleUtils.js";
 import AuthCloseButton from "../components/AuthCloseButton.jsx";
 import PasswordField from "../components/PasswordField.jsx";
 
@@ -26,7 +27,7 @@ const OrganizerLogin = () => {
         handleRequestOtp,
         handlePasswordReset,
     } = useLoginPage({
-        redirectPath: "https://organizer.crtcompete.com/organizer/dashboard",
+        redirectPath: getPortalBaseUrl("ORGANIZER"),
         allowedRoles: ["ORGANIZER"],
     });
 
@@ -182,7 +183,7 @@ const OrganizerLogin = () => {
                 </button>
 
                 <p className="text-center text-sm text-slate-400">
-                    New organizer? <button type="button" onClick={() => window.open("https://organizer.crtcompete.com/organizer/register", "_blank", "noopener,noreferrer")} className="font-semibold text-emerald-400">Create an account</button>
+                    New organizer? <button type="button" onClick={() => window.open(`${window.location.origin}/organizer/register`, "_blank", "noopener,noreferrer")} className="font-semibold text-emerald-400">Create an account</button>
                 </p>
             </form>
         </main>

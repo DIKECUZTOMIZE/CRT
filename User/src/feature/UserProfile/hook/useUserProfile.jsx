@@ -4,7 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import { getUserProfile, getSavedEvents } from "../api/userProfile.api.js";
 
 const normalizeUserProfile = (user) => {
-  if (!user || typeof user !== "object") {
+  const normalizedUser =
+    user && typeof user === "object" && user.raw && typeof user.raw === "object" && user.raw.user
+      ? user.raw.user
+      : user;
+
+  if (!normalizedUser || typeof normalizedUser !== "object") {
     return {
       id: null,
       name: "User",
@@ -15,24 +20,24 @@ const normalizeUserProfile = (user) => {
       savedEvents: 0,
       interestedEvents: 0,
       rewardPoints: 0,
+      raw: user || {},
     };
   }
 
-  const username = user.username || user.name || user.fullName || "User";
-
-  const avatar = user.avatar || user.profileImage || user.picture || user.image || "";
+  const username = normalizedUser.username || normalizedUser.name || normalizedUser.fullName || "User";
+  const avatar = normalizedUser.avatar || normalizedUser.profileImage || normalizedUser.picture || normalizedUser.image || "";
 
   return {
-    id: user._id || user.id || null,
-    name: user.name || user.fullName || username,
+    id: normalizedUser._id || normalizedUser.id || user?._id || user?.id || null,
+    name: normalizedUser.name || normalizedUser.fullName || username,
     username,
-    email: user.email || "",
-    role: user.role || "USER",
+    email: normalizedUser.email || user?.email || "",
+    role: normalizedUser.role || user?.role || "USER",
     avatar,
-    savedEvents: Number(user.savedEvents ?? 0),
-    interestedEvents: Number(user.interestedEvents ?? 0),
-    rewardPoints: Number(user.rewardPoints ?? 0),
-    raw: user,
+    savedEvents: Number(normalizedUser.savedEvents ?? user?.savedEvents ?? 0),
+    interestedEvents: Number(normalizedUser.interestedEvents ?? user?.interestedEvents ?? 0),
+    rewardPoints: Number(normalizedUser.rewardPoints ?? user?.rewardPoints ?? 0),
+    raw: normalizedUser,
   };
 };
 

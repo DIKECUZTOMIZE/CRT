@@ -1,11 +1,14 @@
 import { useState } from "react";
 
+import { getPortalBaseUrl } from "../../../app/utils/roleUtils.js";
 import { useAuthForm } from "../../hook/useAuthForm.jsx";
 import AuthCloseButton from "../components/AuthCloseButton.jsx";
 import PasswordField from "../components/PasswordField.jsx";
 
+const passwordRequirementsMessage = "Password must be at least 12 characters with uppercase, lowercase, a number, and a special character.";
+
 const OrganizerRegister = () => {
-    const { error, isSubmitting, submit } = useAuthForm("organizer-register", "https://organizer.crtcompete.com/organizer/dashboard");
+    const { error, isSubmitting, submit } = useAuthForm("organizer-register", getPortalBaseUrl("ORGANIZER"));
     const [formData, setFormData] = useState({ username: "", email: "", password: "" });
 
     const updateField = (event) => {
@@ -13,13 +16,22 @@ const OrganizerRegister = () => {
         setFormData((current) => ({ ...current, [name]: value }));
     };
 
+    const handleSubmit = (event) => {
+        event.preventDefault();
+
+        const payload = {
+            username: formData.username.trim(),
+            email: formData.email.trim().toLowerCase(),
+            password: formData.password,
+        };
+
+        void submit(payload);
+    };
+
     return (
         <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-10">
             <form
-                onSubmit={(event) => {
-                    event.preventDefault();
-                    void submit(formData);
-                }}
+                onSubmit={handleSubmit}
                 className="relative w-full max-w-md space-y-5 rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl"
             >
                 <AuthCloseButton />
@@ -62,15 +74,16 @@ const OrganizerRegister = () => {
                     value={formData.password}
                     onChange={updateField}
                     minLength={12}
+                    pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{12,128}$"
+                    title={passwordRequirementsMessage}
                     autoComplete="new-password"
-                    title="Use at least 12 characters including uppercase, lowercase, number, and a special character"
                 />
 
                 {error && <p className="rounded-lg bg-rose-500/10 p-3 text-sm text-rose-300">{error}</p>}
                 <button type="submit" disabled={isSubmitting} className="h-11 w-full rounded-lg bg-emerald-500 font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-60">
                     {isSubmitting ? "Creating account..." : "Create account"}
                 </button>
-                <p className="text-center text-sm text-slate-400">Already registered? <button type="button" onClick={() => window.open("https://organizer.crtcompete.com/organizer/login", "_blank", "noopener,noreferrer")} className="font-semibold text-emerald-400">Sign in</button></p>
+                <p className="text-center text-sm text-slate-400">Already registered? <button type="button" onClick={() => window.open(`${window.location.origin}/organizer/login`, "_blank", "noopener,noreferrer")} className="font-semibold text-emerald-400">Sign in</button></p>
             </form>
         </main>
     );

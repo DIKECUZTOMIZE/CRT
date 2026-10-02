@@ -144,10 +144,7 @@ const OrganizerSidebar = ({ mobile = false, onClose }) => {
 
               <button
                 type="button"
-                onClick={() => {
-                  if (onClose) onClose();
-                  setShowLogoutModal(true);
-                }}
+                onClick={() => setShowLogoutModal(true)}
                 className="flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium text-red-400 transition-all duration-200 hover:bg-red-500/10 hover:text-red-300"
               >
                 <LogOut className="h-5 w-5 shrink-0" />

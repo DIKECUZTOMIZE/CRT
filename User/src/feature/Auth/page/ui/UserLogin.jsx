@@ -40,8 +40,8 @@ const UserLogin = ({ onClose }) => {
     });
 
     return (
-        <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.15),_transparent_35%),linear-gradient(135deg,#020817_0%,#0f172a_35%,#111827_100%)] px-4 py-10">
-            <div className="w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-[32px] border border-slate-800/80 bg-slate-900/70 shadow-[0_30px_80px_rgba(2,6,23,0.8)] backdrop-blur-md">
+        <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.15),_transparent_35%),linear-gradient(135deg,#020817_0%,#0f172a_35%,#111827_100%)] px-4 py-4 sm:py-10">
+            <div className="w-full max-w-5xl overflow-hidden rounded-[32px] border border-slate-800/80 bg-slate-900/70 shadow-[0_30px_80px_rgba(2,6,23,0.8)] backdrop-blur-md">
                 <div className="grid lg:grid-cols-[1.1fr_0.9fr]">
                     <div className="hidden bg-gradient-to-br from-emerald-500/20 via-slate-900 to-slate-950 p-10 lg:flex lg:flex-col lg:justify-between">
                         <div>
@@ -70,7 +70,7 @@ const UserLogin = ({ onClose }) => {
 
                     <form
                         onSubmit={handleSubmit}
-                        className="relative max-h-[90vh] overflow-y-auto overscroll-contain scroll-smooth space-y-5 bg-slate-900/80 p-6 pr-2 sm:p-8 sm:pr-3 lg:p-10 lg:pr-4"
+                        className="relative space-y-5 bg-slate-900/80 p-6 pb-[max(1rem,env(safe-area-inset-bottom))] pr-2 sm:p-8 sm:pr-3 lg:max-h-[90vh] lg:overflow-y-auto lg:overscroll-contain lg:scroll-smooth lg:p-10 lg:pr-4"
                     >
                         <AuthCloseButton onClose={onClose} />
                         <div>

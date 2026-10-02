@@ -14,14 +14,14 @@ const GlobalLocationBadge = () => {
       : currentLocation?.state || "India";
 
   return (
-    <div className="border-b border-emerald-500/10 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.12),_transparent_35%),rgba(2,6,23,0.96)] px-3 py-2.5 shadow-[0_10px_30px_rgba(15,23,42,0.25)] backdrop-blur-xl sm:px-4">
+    <div className="border-b border-[#E2E8F0] bg-[radial-gradient(70%_100%_at_50%_0%,rgba(16,185,129,0.06)_0%,rgba(255,255,255,0)_100%),#FFFFFF] px-3 py-2.5 shadow-[0_1px_0_rgba(15,23,42,0.02)] backdrop-blur-xl sm:px-4">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 text-[10px] sm:text-xs">
-        <div className="flex min-w-0 items-center gap-2 text-slate-300">
-          <span className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-gradient-to-r from-emerald-400 to-teal-300 shadow-[0_0_12px_rgba(52,211,153,0.75)]" />
-          <span className="truncate font-medium text-slate-200">Current location</span>
+        <div className="flex min-w-0 items-center gap-2 text-slate-700">
+          <span className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-[#059669] shadow-[0_0_12px_rgba(16,185,129,0.12)]" />
+          <span className="truncate font-medium text-slate-700">Current location</span>
         </div>
-        <div className="ml-auto flex max-w-[58%] items-center justify-end rounded-full border border-emerald-500/20 bg-emerald-500/8 px-2.5 py-1 text-right shadow-inner shadow-emerald-500/5 sm:max-w-[65%]">
-          <span className="truncate font-semibold tracking-[0.02em] text-emerald-300">{locationText}</span>
+        <div className="ml-auto flex max-w-[58%] items-center justify-end rounded-full border border-[#E2E8F0] bg-[#F4F9F6] px-2.5 py-1 text-right shadow-[0_1px_3px_rgba(6,78,59,0.04)] sm:max-w-[65%]">
+          <span className="truncate font-semibold tracking-[0.02em] text-[#059669]">{locationText}</span>
         </div>
       </div>
     </div>
@@ -45,11 +45,11 @@ const PublicLayout = ({ children }) => {
   }, [dispatch]);
 
   return (
-    <div className="flex min-h-screen flex-col justify-between overflow-x-hidden bg-slate-950 text-slate-100">
+    <div className="flex min-h-screen flex-col justify-between overflow-x-hidden bg-[#FAFCFA] text-slate-900">
       <Navbar />
       <GlobalLocationBadge />
 
-      <main className="flex-1 pb-[calc(4.5rem+env(safe-area-inset-bottom))] sm:pb-4 lg:pb-0">
+      <main className="flex-1 bg-[#FAFCFA] pb-[calc(4.5rem+env(safe-area-inset-bottom))] sm:pb-4 lg:pb-0">
         {content}
       </main>
 

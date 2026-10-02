@@ -26,6 +26,7 @@ export const API_ENDPOINTS = Object.freeze({
     organizerRegister: "/api/auth/organizer/register",
     refresh: "/api/auth/refresh-token",
     logout: "/api/auth/logout",
+    organizerHandoff: "/api/auth/organizer-handoff",
     registeredEmails: "/api/auth/password-reset/emails",
     requestPasswordReset: "/api/auth/password-reset/request",
     resetPasswordWithOtp: "/api/auth/password-reset/confirm",
@@ -38,6 +39,9 @@ export const API_ENDPOINTS = Object.freeze({
     publicEvents: "/api/events/public",
     publicEventView: "/api/events/public",
     homeSlider: "/api/home-slider",
+    notifications: "/api/notifications",
+    markNotificationRead: "/api/notifications",
+    markAllNotificationsRead: "/api/notifications/read-all",
 });
 
 export const apiClient = axios.create({
@@ -63,7 +67,6 @@ const clearAuthState = () => {
     }
 
     try {
-        window.localStorage.removeItem("crt_auth_user");
         window.sessionStorage.removeItem("crt-admin-auth");
         window.sessionStorage.removeItem("crt-admin-user");
     } catch {
@@ -73,13 +76,17 @@ const clearAuthState = () => {
     delete apiClient.defaults.headers.common.Authorization;
 };
 
+const PUBLIC_PATHS = new Set(["/", "/filter", "/about"]);
+
 const redirectToLogin = () => {
     if (typeof window === "undefined") {
         return;
     }
 
     const currentPath = window.location.pathname || "/";
-    if (currentPath === "/login" || currentPath === "/register") {
+    const normalizedPath = currentPath === "/" ? "/" : currentPath.replace(/\/+$/, "") || "/";
+
+    if (PUBLIC_PATHS.has(normalizedPath) || normalizedPath === "/login" || normalizedPath === "/register") {
         return;
     }
 

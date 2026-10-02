@@ -4,8 +4,9 @@ import nodemailer from "nodemailer";
 import env from "../config/env.js";
 import { logger } from "../config/logger.js";
 
+const isTestMode = env.NODE_ENV === "test" || process.argv.some((arg) => arg === "--test" || arg.includes("node:test")) || process.execArgv.some((arg) => arg.includes("--test") || arg.includes("node:test"));
+
 const connection = {
-  // host: "127.0.0.1",
   host: "redis",
   port: 6379,
 };
@@ -20,26 +21,42 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const emailWorker = new Worker(
-  "email",
-  async (job) => {
-    const { to, subject, html } = job.data;
+const emailWorker = isTestMode
+  ? null
+  : new Worker(
+      "email",
+      async (job) => {
+        const { to, subject, html } = job.data;
 
-    await transporter.sendMail({
-      from: env.SMTP_FROM,
-      to,
-      subject,
-      html,
-    });
+        await transporter.sendMail({
+          from: env.SMTP_FROM,
+          to,
+          subject,
+          html,
+        });
 
-    logger.info({ jobId: job.id, to }, "Email job processed");
-    return true;
-  },
-  { connection }
-);
+        logger.info({ jobId: job.id, to }, "Email job processed");
+        return true;
+      },
+      { connection }
+    );
 
-emailWorker.on("failed", (job, error) => {
-  logger.error({ jobId: job?.id, error }, "Email worker failed");
-});
+if (emailWorker) {
+  emailWorker.on("failed", (job, error) => {
+    logger.error({ jobId: job?.id, error }, "Email worker failed");
+  });
+}
+
+export const closeEmailWorker = async () => {
+  if (!emailWorker) {
+    return;
+  }
+
+  try {
+    await emailWorker.close();
+  } catch (error) {
+    logger.warn({ error }, "Email worker shutdown warning");
+  }
+};
 
 export default emailWorker;

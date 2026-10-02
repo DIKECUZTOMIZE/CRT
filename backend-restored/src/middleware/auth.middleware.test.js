@@ -129,3 +129,58 @@ test('cookie header fallback works when req.cookies is not populated', async () 
   assert.equal(called, true);
   assert.equal(req.user.role, 'USER');
 });
+
+test('organizer access tokens are accepted when the Origin header is missing', async () => {
+  let called = false;
+  const token = jwt.sign({ sub: 'organizer-123', role: 'ORGANIZER' }, config.auth.accessTokenSecret);
+  const req = {
+    headers: {},
+    cookies: { organizerAccessToken: token },
+  };
+  const res = makeRes();
+  const next = () => {
+    called = true;
+  };
+
+  authMiddleware(req, res, next);
+
+  assert.equal(called, true);
+  assert.equal(req.user.role, 'ORGANIZER');
+});
+
+test('multi-access tokens allow organizer access when the account has both USER and ORGANIZER roles', async () => {
+  let called = false;
+  const token = jwt.sign({ sub: 'user-123', role: 'USER', roles: ['USER', 'ORGANIZER'] }, config.auth.accessTokenSecret);
+  const req = {
+    headers: { origin: 'http://localhost:5175' },
+    cookies: { organizerAccessToken: token },
+  };
+  const res = makeRes();
+  const next = () => {
+    called = true;
+  };
+
+  authMiddleware(req, res, next);
+
+  assert.equal(called, true);
+  assert.deepEqual(req.user.roles, ['USER', 'ORGANIZER']);
+  assert.equal(req.user.role, 'ORGANIZER');
+});
+
+test('multi-access tokens reject organizer access when the account does not have ORGANIZER access', async () => {
+  let nextArg = null;
+  const token = jwt.sign({ sub: 'user-123', role: 'USER', roles: ['USER'] }, config.auth.accessTokenSecret);
+  const req = {
+    headers: { origin: 'http://localhost:5175' },
+    cookies: { organizerAccessToken: token },
+  };
+  const res = makeRes();
+  const next = (error) => {
+    nextArg = error;
+  };
+
+  authMiddleware(req, res, next);
+
+  assert.ok(nextArg);
+  assert.equal(nextArg.message, 'Role mismatch for this app');
+});

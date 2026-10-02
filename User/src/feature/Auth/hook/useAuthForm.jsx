@@ -33,8 +33,6 @@ export const useAuthForm = (mode, redirectPath, allowedRoles) => {
       if (typeof window !== "undefined") {
         sessionStorage.removeItem("crt-admin-auth");
         sessionStorage.removeItem("crt-admin-user");
-        window.localStorage.removeItem("crt_auth_user");
-        window.localStorage.setItem("crt_auth_user", JSON.stringify(user));
       }
 
       if (allowedRoles && Array.isArray(allowedRoles)) {
@@ -42,9 +40,6 @@ export const useAuthForm = (mode, redirectPath, allowedRoles) => {
         const normalizedAllowedRoles = allowedRoles.map((role) => normalizeRole(role));
 
         if (!normalizedAllowedRoles.includes(normalizedUserRole)) {
-          if (typeof window !== "undefined") {
-            window.localStorage.removeItem("crt_auth_user");
-          }
           await dispatch(logoutUser()).unwrap();
           throw new Error("Your account type is not authorized to log in here.");
         }

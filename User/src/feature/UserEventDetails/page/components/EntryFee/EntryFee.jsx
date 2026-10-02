@@ -46,10 +46,10 @@ export const EntryFee = ({ entryFee, initialOpen = false }) => {
       {isFree && categories.length === 0 && (
         <div className="info-pill info-pill--success">
           <div className="info-pill__content">
-            <Sparkles className="h-4 w-4 text-emerald-400" />
-            <span className="text-xs font-bold text-emerald-300">Free Event Entry</span>
+            <Sparkles className="h-4 w-4 text-emerald-600" />
+            <span className="text-xs font-bold text-emerald-700">Free Event Entry</span>
           </div>
-          <span className="text-[10px] font-black uppercase text-emerald-300">₹0 / Free</span>
+          <span className="text-[10px] font-black uppercase text-emerald-700">₹0 / Free</span>
         </div>
       )}
 
@@ -63,20 +63,20 @@ export const EntryFee = ({ entryFee, initialOpen = false }) => {
               <div key={cat.id || idx} className="stack-item">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <p className="truncate text-xs font-bold text-slate-200">{cat.label}</p>
+                    <p className="truncate text-xs font-bold text-slate-900">{cat.label}</p>
                     {cat.isPopular && (
                       <span className="pill badge-amber">Popular</span>
                     )}
                   </div>
 
                   {cat.description && (
-                    <p className="mt-0.5 text-[9px] font-medium leading-relaxed text-slate-400">
+                    <p className="mt-0.5 text-[9px] font-medium leading-relaxed text-slate-500">
                       {cat.description}
                     </p>
                   )}
                 </div>
 
-                <span className="shrink-0 text-xs font-black text-emerald-400 sm:text-sm">
+                <span className="shrink-0 text-xs font-black text-emerald-700 sm:text-sm">
                   {amount === 0 ? "Free" : formatCurrency(amount, currency)}
                 </span>
               </div>
@@ -87,8 +87,8 @@ export const EntryFee = ({ entryFee, initialOpen = false }) => {
 
       {!isFree && categories.length === 0 && entryFee.amount !== undefined && (
         <div className="stack-item">
-          <span className="text-xs font-bold text-slate-300">Standard Entry</span>
-          <span className="text-xs font-black text-emerald-400 sm:text-sm">
+          <span className="text-xs font-bold text-slate-700">Standard Entry</span>
+          <span className="text-xs font-black text-emerald-700 sm:text-sm">
             {formatCurrency(Number(entryFee.amount), entryFee.currency || "INR")}
           </span>
         </div>
@@ -97,9 +97,9 @@ export const EntryFee = ({ entryFee, initialOpen = false }) => {
       {entryFee.note && (
         <div className="info-note">
           <div className="info-note__content">
-            <AlertCircle className="mt-0.5 h-3 w-3 shrink-0 text-amber-400/80" />
-            <p className="text-[10px] leading-relaxed text-slate-400">
-              <span className="font-semibold text-slate-300">Note:</span> {entryFee.note}
+            <AlertCircle className="mt-0.5 h-3 w-3 shrink-0 text-amber-600/80" />
+            <p className="text-[10px] leading-relaxed text-slate-500">
+              <span className="font-semibold text-slate-700">Note:</span> {entryFee.note}
             </p>
           </div>
         </div>

@@ -47,23 +47,25 @@ const parseTimeValue = (value) => {
     const trimmed = value.trim();
     if (!trimmed) return null;
 
-    const meridiemMatch = trimmed.match(/^([0-9]{1,2}):([0-9]{2})\s*([AaPp][Mm])$/);
+    const meridiemMatch = trimmed.match(/^([0-9]{1,2}):([0-9]{2})(?::([0-9]{2}))?\s*([AaPp][Mm])$/);
     if (meridiemMatch) {
         let hours = Number(meridiemMatch[1]);
         const minutes = Number(meridiemMatch[2]);
-        const meridiem = meridiemMatch[3].toUpperCase();
+        const seconds = Number(meridiemMatch[3] ?? 0);
+        const meridiem = meridiemMatch[4].toUpperCase();
 
         if (meridiem === "AM" && hours === 12) hours = 0;
         if (meridiem === "PM" && hours !== 12) hours += 12;
 
-        return new Date(0, 0, 0, hours, minutes, 0);
+        return new Date(0, 0, 0, hours, minutes, seconds, 0);
     }
 
-    const standardMatch = trimmed.match(/^([0-9]{1,2}):([0-9]{2})$/);
+    const standardMatch = trimmed.match(/^([0-9]{1,2}):([0-9]{2})(?::([0-9]{2}))?$/);
     if (standardMatch) {
         const hours = Number(standardMatch[1]);
         const minutes = Number(standardMatch[2]);
-        return new Date(0, 0, 0, hours, minutes, 0);
+        const seconds = Number(standardMatch[3] ?? 0);
+        return new Date(0, 0, 0, hours, minutes, seconds, 0);
     }
 
     return null;
@@ -77,19 +79,62 @@ const combineDateTime = (dateValue, timeValue) => {
     if (!baseTime) return baseDate;
 
     const result = new Date(baseDate);
-    result.setHours(baseTime.getHours(), baseTime.getMinutes(), 0, 0);
+    result.setHours(baseTime.getHours(), baseTime.getMinutes(), baseTime.getSeconds(), 0);
     return result;
+};
+
+export const getCombinedEventEndDateTime = (eventData = {}) => {
+    const endDateValue = eventData.eventEndDate || eventData.eventEnd || eventData.eventDate || eventData.eventStart;
+    const endTimeValue = eventData.eventEndTime || eventData.eventTime || eventData.eventStartTime;
+    const endDate = combineDateTime(endDateValue, endTimeValue);
+
+    if (!endDate) {
+        return null;
+    }
+
+    if (endDateValue && !eventData.eventEndTime && !eventData.eventTime && !eventData.eventStartTime) {
+        endDate.setHours(23, 59, 59, 999);
+    }
+
+    return endDate;
+};
+
+export const shouldAutoCompleteByEndTime = (eventData = {}) => {
+    if (!eventData || typeof eventData !== "object") {
+        return false;
+    }
+
+    const status = normalizeStatusValue(eventData.status);
+    if (["completed", "ended", "cancelled", "postponed"].includes(status) || eventData.completionConfirmedAt) {
+        return false;
+    }
+
+    const endDate = getCombinedEventEndDateTime(eventData);
+    if (!endDate) {
+        return false;
+    }
+
+    return new Date() > endDate;
 };
 
 export const deriveEventStatus = (eventData = {}) => {
     const incomingStatus = normalizeStatusValue(eventData.status);
+    const hasExplicitStatus = Object.prototype.hasOwnProperty.call(eventData, "status");
 
-    if (["cancelled", "postponed", "upcoming", "live", "completed", "ended"].includes(incomingStatus)) {
+    if (["completed", "ended", "cancelled", "postponed"].includes(incomingStatus)) {
+        return incomingStatus;
+    }
+
+    if (shouldAutoCompleteByEndTime(eventData)) {
+        return "completed";
+    }
+
+    if (hasExplicitStatus && ["live", "upcoming"].includes(incomingStatus)) {
         return incomingStatus;
     }
 
     if (incomingStatus === undefined || incomingStatus === null || incomingStatus === "") {
-        return "upcoming";
+        // fall through to time-based status derivation
     }
 
     const hasExplicitDateWindow = Boolean(
@@ -101,26 +146,15 @@ export const deriveEventStatus = (eventData = {}) => {
         eventData.eventStartTime || eventData.eventTime
     );
 
-    const endDate = combineDateTime(
-        eventData.eventEndDate || eventData.eventEnd || eventData.eventDate || eventData.eventStart,
-        eventData.eventEndTime || eventData.eventTime || eventData.eventStartTime
-    );
+    const endDate = getCombinedEventEndDateTime(eventData);
 
     if (!startDate && !endDate) {
         return "upcoming";
     }
 
-    if (endDate && !eventData.eventEndTime && !eventData.eventTime && !eventData.eventStartTime) {
-        endDate.setHours(23, 59, 59, 999);
-    }
-
     const now = new Date();
 
-    if (endDate && now > endDate) {
-        return "completed";
-    }
-
-    if (startDate && now >= startDate && endDate && now < endDate) {
+    if (startDate && now >= startDate) {
         return "live";
     }
 
@@ -164,6 +198,17 @@ const prizeSchema = new mongoose.Schema(
         position: { type: String, trim: true, maxlength: 80 },
         amount: { type: Number, min: 0 },
         reward: { type: String, trim: true, maxlength: 300 },
+    },
+    { _id: false }
+);
+
+const resultSchema = new mongoose.Schema(
+    {
+        participation: { type: String, trim: true, maxlength: 40, default: "Solo" },
+        participationType: { type: String, trim: true, maxlength: 40, default: "Solo" },
+        position: { type: String, trim: true, maxlength: 80, default: "1st" },
+        name: { type: String, trim: true, maxlength: 150, default: "" },
+        winnerName: { type: String, trim: true, maxlength: 150, default: "" },
     },
     { _id: false }
 );
@@ -258,6 +303,7 @@ const eventSchema = new mongoose.Schema(
         },
         totalPrizePool: { type: Number, min: 0 },
         prizes: { type: [prizeSchema], default: [] },
+        results: { type: [resultSchema], default: [] },
         eventRules: { type: [ruleSchema], default: [] },
         securityRequirements: { type: [ruleSchema], default: [] },
         participationSteps: {
@@ -276,6 +322,10 @@ const eventSchema = new mongoose.Schema(
             default: "upcoming",
             set: (value) => normalizeStatusValue(value),
             index: true,
+        },
+        completionConfirmedAt: {
+            type: Date,
+            default: null,
         },
         statusReason: {
             type: String,

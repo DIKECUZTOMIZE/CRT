@@ -1,7 +1,5 @@
 import { createSlice } from "@reduxjs/toolkit";
 
-const STORAGE_KEY = "crt-user-location";
-
 const defaultLocation = {
   country: "India",
   state: "India",
@@ -9,51 +7,40 @@ const defaultLocation = {
   isSelected: false,
 };
 
-const safeReadLocation = () => {
-  if (typeof window === "undefined") {
-    return defaultLocation;
+const safeReadLocation = () => ({ ...defaultLocation });
+
+export const normalizeLocation = (payload = {}) => {
+  const source = payload && typeof payload === "object" ? payload : {};
+  const rawState = String(source.state ?? "").trim();
+  const rawCity = String(source.city ?? "").trim();
+  const hasMeaningfulSelection = Boolean(
+    source.isSelected === true ||
+    (rawState && rawState !== "India") ||
+    (rawCity && rawCity !== "All India" && rawCity !== "India")
+  );
+
+  if (!hasMeaningfulSelection) {
+    return safeReadLocation();
   }
 
-  try {
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (!saved) return defaultLocation;
-
-    const parsed = JSON.parse(saved);
-    if (!parsed || typeof parsed !== "object") return defaultLocation;
-
-    return {
-      country: "India",
-      state: parsed.state || "India",
-      city: parsed.city || "All India",
-      isSelected: Boolean(parsed.isSelected),
-    };
-  } catch {
-    return defaultLocation;
-  }
-};
-
-const persistLocation = (location) => {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(location));
-  } catch {
-    // Ignore persistence failures silently.
-  }
-};
-
-const normalizeLocation = (payload = {}) => {
-  const nextState = payload.state || "India";
-  const nextCity = payload.city || "All India";
+  const nextState = rawState || "India";
+  const nextCity = rawCity || "All India";
 
   return {
     country: "India",
     state: nextState === "India" ? "India" : nextState,
     city: nextCity && nextCity !== "India" ? nextCity : "All India",
-    isSelected: nextState !== "India" || nextCity !== "All India",
+    isSelected: true,
   };
+};
+
+export const hydrateLocationFromUser = (user = {}) => {
+  if (!user || typeof user !== "object") {
+    return safeReadLocation();
+  }
+
+  const directLocation = user.location && typeof user.location === "object" ? user.location : {};
+  return normalizeLocation(directLocation);
 };
 
 const locationSlice = createSlice({
@@ -61,19 +48,13 @@ const locationSlice = createSlice({
   initialState: safeReadLocation(),
   reducers: {
     setUserLocation: (state, action) => {
-      const normalized = normalizeLocation(action.payload);
-      Object.assign(state, normalized);
-      persistLocation(normalized);
+      return normalizeLocation(action.payload);
     },
     syncUserLocation: (state, action) => {
-      const normalized = normalizeLocation(action.payload);
-      Object.assign(state, normalized);
-      persistLocation(normalized);
+      return normalizeLocation(action.payload);
     },
-    resetUserLocation: (state) => {
-      const reset = { ...defaultLocation };
-      Object.assign(state, reset);
-      persistLocation(reset);
+    resetUserLocation: () => {
+      return safeReadLocation();
     },
   },
 });

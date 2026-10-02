@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Eye, Loader2, PencilLine, Plus, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
+import { API_BASE_URL } from "../../app/config/apiBase.js";
 
 const emptyUserForm = {
   username: "",
@@ -95,7 +96,7 @@ export const UserList = () => {
     setUploadingAvatar(true);
 
     try {
-      const response = await fetch("http://localhost:3000/api/upload/image", {
+      const response = await fetch(`${API_BASE_URL}/api/upload/image`, {
         method: "POST",
         credentials: "include",
         body: formData,
@@ -124,7 +125,7 @@ export const UserList = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3000/api/admin/users?role=USER", {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users?role=USER`, {
         method: "GET",
         credentials: "include",
         headers: {
@@ -229,7 +230,7 @@ export const UserList = () => {
 
     try {
       const isEdit = formMode === "edit" && selectedUser;
-      const endpoint = isEdit ? `http://localhost:3000/api/admin/users/${selectedUser.id || selectedUser._id}` : "http://localhost:3000/api/admin/users";
+      const endpoint = isEdit ? `${API_BASE_URL}/api/admin/users/${selectedUser.id || selectedUser._id}` : `${API_BASE_URL}/api/admin/users`;
       const method = isEdit ? "PUT" : "POST";
 
       const body = { ...nextPayload };
@@ -284,7 +285,7 @@ export const UserList = () => {
     if (!confirmed) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/users/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/${id}`, {
         method: "DELETE",
         credentials: "include",
         headers: {

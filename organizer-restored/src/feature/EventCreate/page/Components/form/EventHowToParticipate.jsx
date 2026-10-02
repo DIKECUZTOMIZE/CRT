@@ -11,7 +11,8 @@ import {
 import FormSection from "../common/FormSection";
 
 export default function EventHowToParticipate() {
-  const { register, control } = useFormContext();
+  const { register, control, watch } = useFormContext();
+  const isEditing = watch("isEditing");
 
   const {
     fields: stepFields,
@@ -32,7 +33,7 @@ export default function EventHowToParticipate() {
     { text: "Complete the registration process as instructed by the organizer." },
   ];
 
-  const displaySteps = stepFields.length > 0 ? stepFields : defaultSteps;
+  const displaySteps = stepFields.length > 0 ? stepFields : isEditing ? [] : defaultSteps;
 
   const getSummaryText = () => {
     const totalSteps = displaySteps.length;

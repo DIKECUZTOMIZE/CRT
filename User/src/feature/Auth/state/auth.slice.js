@@ -7,9 +7,30 @@ import {
     registerOrganizer,
     registerUser,
 } from "../api/auth.api.js";
-import { getPortalStoredUser } from "./sessionGuard.js";
+import { connectSocketIfAuthenticated, socket } from "../../../app/config/socket.js";
+import { hasPortalAuthCookie } from "./sessionGuard.js";
 
-const AUTH_STORAGE_KEY = "crt_auth_user";
+const hasPortalRole = (user, expectedRole) => {
+    if (!user || typeof user !== "object") {
+        return false;
+    }
+
+    const normalizedExpectedRole = String(expectedRole ?? "").trim().toUpperCase();
+    if (!normalizedExpectedRole) {
+        return false;
+    }
+
+    const candidateRoles = Array.isArray(user.roles)
+        ? user.roles
+        : Array.isArray(user.role)
+            ? user.role
+            : [user.role];
+
+    return candidateRoles
+        .filter(Boolean)
+        .map((role) => String(role).trim().toUpperCase())
+        .includes(normalizedExpectedRole);
+};
 
 const extractUserFromResponse = (payload) => {
     if (!payload || typeof payload !== "object") return null;
@@ -61,32 +82,13 @@ const clearAllPortalAuthState = () => {
         document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
     });
 
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
     window.sessionStorage.removeItem("crt-admin-auth");
     window.sessionStorage.removeItem("crt-admin-user");
 };
 
-const readStoredUser = () => {
-    if (typeof window === "undefined") return null;
-
-    const rawValue = window.localStorage.getItem(AUTH_STORAGE_KEY);
-    return getPortalStoredUser(rawValue, "USER");
-};
-
-const writeStoredUser = (user) => {
-    if (typeof window === "undefined") return;
-
-    if (!user) {
-        window.localStorage.removeItem(AUTH_STORAGE_KEY);
-        return;
-    }
-
-    window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
-};
-
 const initialState = {
-    user: readStoredUser(),
-    status: readStoredUser() ? "authenticated" : "idle",
+    user: null,
+    status: "idle",
     error: null,
 };
 
@@ -96,12 +98,10 @@ export const bootstrapAuth = createAsyncThunk(
         try {
             const result = await getCurrentUser();
             const user = extractUserFromResponse(result);
-            const safeUser = user && String(user.role || "").trim().toUpperCase() === "USER" ? user : null;
-            writeStoredUser(safeUser);
+            const safeUser = user && hasPortalRole(user, "USER") ? user : null;
             return safeUser;
         } catch (error) {
             if (error.status === 401 || error.status === 403 || error.status === 404) {
-                clearAllPortalAuthState();
                 return null;
             }
 
@@ -116,8 +116,7 @@ export const loginUser = createAsyncThunk(
         try {
             const result = await login(credentials);
             const user = extractUserFromResponse(result);
-            const safeUser = user && String(user.role || "").trim().toUpperCase() === "USER" ? user : null;
-            writeStoredUser(safeUser);
+            const safeUser = user && hasPortalRole(user, "USER") ? user : null;
             return safeUser;
         } catch (error) {
             return rejectWithValue(error.message);
@@ -131,8 +130,7 @@ export const registerUserAccount = createAsyncThunk(
         try {
             const result = await registerUser(account);
             const user = extractUserFromResponse(result);
-            const safeUser = user && String(user.role || "").trim().toUpperCase() === "USER" ? user : null;
-            writeStoredUser(safeUser);
+            const safeUser = user && hasPortalRole(user, "USER") ? user : null;
             return safeUser;
         } catch (error) {
             return rejectWithValue(error.message);
@@ -146,8 +144,7 @@ export const registerOrganizerAccount = createAsyncThunk(
         try {
             const result = await registerOrganizer(account);
             const user = extractUserFromResponse(result);
-            const safeUser = user && String(user.role || "").trim().toUpperCase() === "ORGANIZER" ? user : null;
-            writeStoredUser(safeUser);
+            const safeUser = user && hasPortalRole(user, "ORGANIZER") ? user : null;
             return safeUser;
         } catch (error) {
             return rejectWithValue(error.message);
@@ -178,8 +175,13 @@ const authSlice = createSlice({
             .addCase(bootstrapAuth.fulfilled, (state, action) => {
                 state.status = action.payload ? "authenticated" : "unauthenticated";
                 state.user = action.payload;
-                writeStoredUser(action.payload);
                 state.error = null;
+
+                if (action.payload) {
+                    connectSocketIfAuthenticated();
+                } else if (socket.connected) {
+                    socket.disconnect();
+                }
             })
             .addCase(bootstrapAuth.rejected, (state, action) => {
                 state.status = "unauthenticated";
@@ -191,9 +193,14 @@ const authSlice = createSlice({
                 state.error = null;
             })
             .addCase(loginUser.fulfilled, (state, action) => {
-                state.status = "authenticated";
+                state.status = action.payload ? "authenticated" : "unauthenticated";
                 state.user = action.payload;
-                writeStoredUser(action.payload);
+
+                if (action.payload) {
+                    connectSocketIfAuthenticated();
+                } else if (socket.connected) {
+                    socket.disconnect();
+                }
             })
             .addCase(loginUser.rejected, (state, action) => {
                 state.status = "unauthenticated";
@@ -201,14 +208,22 @@ const authSlice = createSlice({
                 state.error = action.payload;
             })
             .addCase(registerUserAccount.fulfilled, (state, action) => {
-                state.status = "authenticated";
+                state.status = action.payload ? "authenticated" : "unauthenticated";
                 state.user = action.payload;
-                writeStoredUser(action.payload);
+
+                if (action.payload) {
+                    connectSocketIfAuthenticated();
+                } else if (socket.connected) {
+                    socket.disconnect();
+                }
             })
             .addCase(logoutUser.fulfilled, (state) => {
                 state.status = "unauthenticated";
                 state.user = null;
                 clearAllPortalAuthState();
+                if (socket.connected) {
+                    socket.disconnect();
+                }
                 state.error = null;
             })
             .addCase(logoutUser.rejected, (state) => {

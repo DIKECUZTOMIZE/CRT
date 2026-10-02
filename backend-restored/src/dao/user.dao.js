@@ -12,16 +12,28 @@ const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  * @param {string} params.password - The password of the user.
  * @returns {Promise<Object>} - The created user object.
  */
-export const createUser = async ({ username, email, password = "", role, googleId, fullName, avatar }) => {
+export const createUser = async ({ username, email, password = "", role, roles, googleId, fullName, avatar }) => {
     const normalizedGoogleId = String(googleId ?? "").trim();
     const normalizedUsername = normalizeUsername(username);
     const normalizedEmail = normalizeEmail(email);
+    const normalizedRole = String(role ?? "").trim().toUpperCase();
+    const normalizedRoles = Array.isArray(roles)
+        ? roles.map((entry) => String(entry ?? "").trim().toUpperCase()).filter(Boolean)
+        : normalizedRole
+            ? [normalizedRole]
+            : [];
+
+    const mergedRoles = [...new Set([
+        ...normalizedRoles,
+        normalizedRole,
+    ])].filter(Boolean).filter((entry) => ["USER", "ORGANIZER", "ADMIN"].includes(entry));
 
     const user = await UserModel.create({
         username: normalizedUsername,
         email: normalizedEmail,
         password,
-        role,
+        role: normalizedRole || "USER",
+        roles: mergedRoles.length ? mergedRoles : ["USER"],
         googleId: normalizedGoogleId || undefined,
         fullName,
         avatar,

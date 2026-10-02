@@ -3,7 +3,7 @@ import CompetitionSection from "./CompetitionSection";
 
 const HighBudget = ({ competitions = [], savedIds = [], onToggleSave }) => (
   <CompetitionSection
-    title="High Budget / Mega Pools"
+    title="High Budget"
     subtitle="Grand-scale hackathons featuring high prize amounts"
     competitions={competitions}
     savedIds={savedIds}

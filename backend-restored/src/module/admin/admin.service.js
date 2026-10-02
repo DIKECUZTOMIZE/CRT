@@ -1,5 +1,6 @@
 import EventModel from "../../model/event.model.js";
 import UserModel from "../../model/user.model.js";
+import { PORTAL_ROLE_ORDER, ROLES } from "../../constant/model.constant.js";
 
 const formatNumber = (value) =>
   new Intl.NumberFormat("en-US").format(Number(value || 0));
@@ -52,6 +53,41 @@ const getUserStatus = (user) => {
 
   return "Pending";
 };
+
+const normalizeRoleValue = (value) => {
+  const normalized = String(value ?? "").trim().toUpperCase();
+  return Object.values(ROLES).includes(normalized) ? normalized : "";
+};
+
+const normalizeRoleList = (value) => {
+  const rawValues = Array.isArray(value) ? value : value ? [value] : [];
+  const deduped = new Set();
+
+  rawValues.forEach((entry) => {
+    const normalized = normalizeRoleValue(entry);
+    if (normalized) {
+      deduped.add(normalized);
+    }
+  });
+
+  return [...deduped];
+};
+
+const getCanonicalRoles = (user = {}) => {
+  const merged = [...new Set([
+    ...normalizeRoleList(user.roles),
+    ...normalizeRoleList(user.role),
+  ])];
+
+  if (merged.length === 0) {
+    return [ROLES.USER];
+  }
+
+  const ordered = PORTAL_ROLE_ORDER.filter((role) => merged.includes(role));
+  return ordered.length > 0 ? ordered : merged;
+};
+
+const getCanonicalIdValue = (value) => String(value ?? "").trim();
 
 const fallbackUsers = [
   {
@@ -109,43 +145,96 @@ const fallbackDashboardData = {
   events: [],
 };
 
-const normalizeUserRecord = (user = {}) => ({
-  id: String(user._id || user.id || ""),
-  _id: user._id ? String(user._id) : user.id ? String(user.id) : "",
-  username: user.username || "",
-  email: user.email || "",
-  fullName: user.fullName || "",
-  role: user.role || "USER",
-  roleTitle: user.roleTitle || "",
-  phone: user.phone || "",
-  avatar: user.avatar || "",
-  isVerified: Boolean(user.isVerified),
-  organizationName: user.organizationName || "",
-  organizationType: user.organizationType || "",
-  website: user.website || "",
-  address: user.address || "",
-  bio: user.bio || "",
-  socials: user.socials || { instagram: "", twitter: "", linkedin: "" },
-  kycStatus: user.kycStatus || "",
-  status: getUserStatus(user),
-  createdAt: user.createdAt || null,
-  updatedAt: user.updatedAt || null,
-});
+const normalizeUserRecord = (user = {}) => {
+  const source = user && typeof user === "object" ? user : {};
+  const idValue = getCanonicalIdValue(source._id ?? source.id ?? "");
+  const normalizedRole = normalizeRoleValue(source.role ?? (Array.isArray(source.roles) ? source.roles[0] : ""));
+  const roles = getCanonicalRoles({
+    role: normalizedRole || source.role,
+    roles: source.roles,
+  });
+  const role = roles[0] || normalizedRole || ROLES.USER;
+  const fullName = String(source.fullName ?? source.username ?? "").trim();
+
+  return {
+    id: idValue,
+    _id: idValue,
+    username: String(source.username ?? "").trim(),
+    email: String(source.email ?? "").trim().toLowerCase(),
+    fullName: fullName || String(source.username ?? "").trim(),
+    role,
+    roles,
+    roleTitle: String(source.roleTitle ?? "").trim(),
+    phone: String(source.phone ?? "").trim(),
+    avatar: String(source.avatar ?? "").trim(),
+    isVerified: Boolean(source.isVerified),
+    organizationName: String(source.organizationName ?? "").trim(),
+    organizationType: String(source.organizationType ?? "").trim(),
+    website: String(source.website ?? "").trim(),
+    address: String(source.address ?? "").trim(),
+    bio: String(source.bio ?? "").trim(),
+    socials: source.socials || { instagram: "", twitter: "", linkedin: "" },
+    kycStatus: String(source.kycStatus ?? "").trim(),
+    status: getUserStatus({ ...source, role, roles }),
+    createdAt: source.createdAt || null,
+    updatedAt: source.updatedAt || null,
+  };
+};
 
 export const getAdminUsersService = async (role = null) => {
   const normalizedRole = String(role || "").trim().toUpperCase();
-  const allowedRoles = new Set(["USER", "ORGANIZER"]);
+  const allowedRoles = new Set(["USER", "ORGANIZER", "ADMIN"]);
+
+  const buildRoleQuery = (targetRole) => {
+    if (!targetRole || !allowedRoles.has(targetRole)) {
+      return {};
+    }
+
+    if (targetRole === "ADMIN") {
+      return {
+        $or: [
+          { role: { $regex: new RegExp(`^${targetRole}$`, "i") } },
+          { roles: { $in: [targetRole] } },
+        ],
+      };
+    }
+
+    return {
+      $and: [
+        {
+          $or: [
+            { role: { $regex: new RegExp(`^${targetRole}$`, "i") } },
+            { roles: { $in: [targetRole] } },
+          ],
+        },
+        {
+          $nor: [
+            { role: { $regex: new RegExp(`^ADMIN$`, "i") } },
+            { roles: { $in: ["ADMIN"] } },
+          ],
+        },
+      ],
+    };
+  };
 
   try {
-    const query = normalizedRole && allowedRoles.has(normalizedRole)
-      ? { role: { $regex: new RegExp(`^${normalizedRole}$`, "i") } }
-      : {};
-
+    const query = buildRoleQuery(normalizedRole);
     const users = await UserModel.find(query).sort({ createdAt: -1 }).lean();
     return users.map(normalizeUserRecord);
   } catch (error) {
     const fallbackList = normalizedRole && allowedRoles.has(normalizedRole)
-      ? fallbackUsers.filter((user) => String(user.role || "").toUpperCase() === normalizedRole)
+      ? fallbackUsers.filter((user) => {
+          const userRoles = new Set([
+            String(user.role || "").trim().toUpperCase(),
+            ...(Array.isArray(user.roles) ? user.roles.map((entry) => String(entry || "").trim().toUpperCase()) : []),
+          ]);
+
+          if (normalizedRole === "ADMIN") {
+            return userRoles.has("ADMIN");
+          }
+
+          return userRoles.has(normalizedRole) && !userRoles.has("ADMIN");
+        })
       : fallbackUsers;
     return fallbackList.map(normalizeUserRecord);
   }
@@ -226,7 +315,11 @@ export const updateAdminUserService = async (userId, payload = {}) => {
     }
 
     if (updateData.role) {
-      updateData.role = String(updateData.role).toUpperCase();
+      updateData.role = String(updateData.role).trim().toUpperCase();
+    }
+
+    if (updateData.roleTitle !== undefined) {
+      updateData.roleTitle = String(updateData.roleTitle).trim();
     }
 
     if (updateData.fullName !== undefined && !updateData.fullName) {

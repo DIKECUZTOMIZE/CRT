@@ -1,8 +1,7 @@
 import axios from "axios";
+import { API_BASE_URL as APP_API_BASE_URL } from "./apiBase.js";
 
-export const API_BASE_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:3000"
-).replace(/\/$/, "");
+export const API_BASE_URL = APP_API_BASE_URL.replace(/\/$/, "");
 
 export const API_ENDPOINTS = Object.freeze({
   login: "/api/auth/login",

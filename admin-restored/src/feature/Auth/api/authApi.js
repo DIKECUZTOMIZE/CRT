@@ -1,6 +1,5 @@
 import { normalizeAuthResponse } from "./responseUtils.js";
-
-const API_BASE_URL = "http://localhost:3000";
+import { API_BASE_URL } from "../../../app/config/apiBase.js";
 
 const jsonFetch = async (url, options = {}) => {
   const response = await fetch(url, {
@@ -42,21 +41,7 @@ export const loginAdmin = async (payload) => {
     body: JSON.stringify(payload),
   });
 
-  const normalized = normalizeAuthResponse(data);
-  const user = normalized?.data?.user || normalized?.user || null;
-
-  clearAllPortalAuthCookies();
-
-  if (typeof window !== "undefined") {
-    window.localStorage.removeItem("crt_auth_user");
-  }
-
-  sessionStorage.setItem("crt-admin-auth", "true");
-  if (user) {
-    sessionStorage.setItem("crt-admin-user", JSON.stringify(user));
-  }
-
-  return normalized;
+  return normalizeAuthResponse(data);
 };
 
 export const logoutAdmin = async () => {
@@ -66,12 +51,6 @@ export const logoutAdmin = async () => {
     });
   } finally {
     clearAllPortalAuthCookies();
-    sessionStorage.removeItem("crt-admin-auth");
-    sessionStorage.removeItem("crt-admin-user");
-
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem("crt_auth_user");
-    }
   }
 };
 

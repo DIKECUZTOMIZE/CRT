@@ -3,7 +3,7 @@ import CompetitionSection from "./CompetitionSection";
 
 const NearbyEvents = ({ competitions = [], savedIds = [], onToggleSave }) => (
   <CompetitionSection
-    title="Nearby Competitions"
+    title="Nearby"
     subtitle="Hackathons happening near your area"
     competitions={competitions}
     savedIds={savedIds}

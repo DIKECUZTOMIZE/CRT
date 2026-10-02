@@ -91,7 +91,7 @@ const combineDateTime = (dateValue, timeValue) => {
 const deriveEventStatus = (event) => {
   const incomingStatus = String(event?.status || "").trim().toLowerCase();
 
-  if (["cancelled", "postponed", "upcoming", "live", "completed", "ended"].includes(incomingStatus)) {
+  if (["cancelled", "postponed", "completed", "ended"].includes(incomingStatus)) {
     return incomingStatus;
   }
 
@@ -102,7 +102,7 @@ const deriveEventStatus = (event) => {
 
   const now = new Date();
   if (end && now > end) return "completed";
-  if (start && now >= start && end && now < end) return "live";
+  if (start && now >= start) return "live";
   if (start && now < start) return "upcoming";
   return "upcoming";
 };

@@ -87,16 +87,16 @@ export const EventHero = ({ event, onShare, onRate, isAuthenticated = false }) =
   const hasRatingAccess = Boolean(onRate) && isAuthenticated;
 
   const statusPalette = {
-    live: "border-emerald-500/30 bg-emerald-500/15 text-emerald-300",
-    upcoming: "border-amber-500/30 bg-amber-500/15 text-amber-300",
-    completed: "border-blue-500/30 bg-blue-500/15 text-blue-300",
-    ended: "border-slate-500/30 bg-slate-500/15 text-slate-200",
-    cancelled: "border-rose-500/30 bg-rose-500/15 text-rose-300",
-    canceled: "border-rose-500/30 bg-rose-500/15 text-rose-300",
-    cancel: "border-rose-500/30 bg-rose-500/15 text-rose-300",
-    postponed: "border-violet-500/30 bg-violet-500/15 text-violet-300",
-    postpond: "border-violet-500/30 bg-violet-500/15 text-violet-300",
-    pospond: "border-violet-500/30 bg-violet-500/15 text-violet-300",
+    live: "border-emerald-200 bg-[#ECFDF5] text-emerald-700",
+    upcoming: "border-amber-200 bg-amber-50 text-amber-700",
+    completed: "border-sky-200 bg-sky-50 text-sky-700",
+    ended: "border-slate-200 bg-slate-100 text-slate-700",
+    cancelled: "border-rose-200 bg-rose-50 text-rose-700",
+    canceled: "border-rose-200 bg-rose-50 text-rose-700",
+    cancel: "border-rose-200 bg-rose-50 text-rose-700",
+    postponed: "border-violet-200 bg-violet-50 text-violet-700",
+    postpond: "border-violet-200 bg-violet-50 text-violet-700",
+    pospond: "border-violet-200 bg-violet-50 text-violet-700",
   };
 
   React.useEffect(() => {
@@ -127,9 +127,9 @@ export const EventHero = ({ event, onShare, onRate, isAuthenticated = false }) =
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-900/90 p-3.5 shadow-2xl backdrop-blur-xl sm:p-6">
+    <div className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-white p-3.5 shadow-[0_10px_26px_rgba(15,118,110,0.05)] sm:p-6">
       {/* BANNER CONTAINER */}
-      <div className="group relative h-52 w-full overflow-hidden rounded-xl bg-slate-950 sm:h-80 md:h-96">
+      <div className="group relative h-52 w-full overflow-hidden rounded-xl bg-[#F8FBF9] sm:h-80 md:h-96">
         <img
           src={bannerUrl}
           alt={event?.title || "Event Banner"}
@@ -144,7 +144,7 @@ export const EventHero = ({ event, onShare, onRate, isAuthenticated = false }) =
         <div className="absolute left-3 top-3 flex max-w-[85%] flex-wrap items-center gap-2 sm:left-4 sm:top-4">
           {event?.status && (
             <span
-              className={`inline-flex max-w-full items-center rounded-full border px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider shadow-lg backdrop-blur-md sm:text-xs ${statusPalette[statusValue] || "border-emerald-500/30 bg-emerald-500/20 text-emerald-300"}`}
+              className={`inline-flex max-w-full items-center rounded-full border px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider shadow-[0_10px_26px_rgba(15,118,110,0.05)] backdrop-blur-md sm:text-xs ${statusPalette[statusValue] || "border-emerald-200 bg-[#ECFDF5] text-emerald-700"}`}
             >
               <span className="mr-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-current animate-pulse" />
               <span className="truncate">{event.status}</span>
@@ -153,11 +153,11 @@ export const EventHero = ({ event, onShare, onRate, isAuthenticated = false }) =
 
           {/* ONLINE / OFFLINE MODE TAG */}
           {eventMode && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-slate-700/80 bg-slate-950/80 px-2.5 py-1 text-[10px] font-bold text-slate-300 shadow-lg backdrop-blur-md sm:px-3 sm:text-xs">
+            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-100 bg-white px-2.5 py-1 text-[10px] font-bold text-slate-700 shadow-[0_10px_26px_rgba(15,118,110,0.05)] backdrop-blur-md sm:px-3 sm:text-xs">
               {eventMode.toLowerCase() === "online" ? (
-                <Globe2 className="h-3 w-3 text-emerald-400" />
+                <Globe2 className="h-3 w-3 text-emerald-600" />
               ) : (
-                <Building2 className="h-3 w-3 text-emerald-400" />
+                <Building2 className="h-3 w-3 text-emerald-600" />
               )}
               {eventMode}
             </span>
@@ -170,7 +170,7 @@ export const EventHero = ({ event, onShare, onRate, isAuthenticated = false }) =
             <button
               type="button"
               onClick={onShare}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-700/80 bg-slate-950/80 text-slate-300 shadow-lg backdrop-blur-md transition-all active:scale-95 hover:border-emerald-500/50 hover:bg-slate-900 hover:text-emerald-400 sm:h-9 sm:w-9"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-100 bg-white text-slate-700 shadow-[0_10px_26px_rgba(15,118,110,0.05)] backdrop-blur-md transition-all active:scale-95 hover:border-emerald-200 hover:bg-[#F8FBF9] hover:text-emerald-700 sm:h-9 sm:w-9"
               title="Share Event"
             >
               <Share2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -181,7 +181,7 @@ export const EventHero = ({ event, onShare, onRate, isAuthenticated = false }) =
         {/* MOBILE OVERLAY: DAYS REMAINING (Bottom Left on Image) */}
         {daysRemainingText && (
           <div className="absolute bottom-3 left-3 sm:hidden">
-            <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-slate-950/90 px-2 py-0.5 text-[10px] font-bold text-emerald-400 backdrop-blur-md">
+            <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-white/90 px-2 py-0.5 text-[10px] font-bold text-emerald-700 backdrop-blur-md">
               <Calendar className="h-2.5 w-2.5 shrink-0" />
               {daysRemainingText}
             </span>
@@ -192,22 +192,22 @@ export const EventHero = ({ event, onShare, onRate, isAuthenticated = false }) =
       {/* HEADER & META CONTENT */}
       <div className="mt-4 space-y-3 sm:mt-5">
         {/* TITLE */}
-        <h1 className="break-words text-lg font-black leading-tight tracking-tight text-white sm:text-3xl lg:text-4xl">
+        <h1 className="break-words text-lg font-black leading-tight tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
           {event?.title}
         </h1>
 
         {/* ORGANIZER & QUICK SPEC CHIPS */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-800/80 pt-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-emerald-100 pt-3">
           {/* ORGANIZER PROFILE */}
           <div className="flex items-center gap-2">
             {organizerLogo ? (
               <img
                 src={organizerLogo}
                 alt={organizerName}
-                className="h-7 w-7 rounded-full border border-slate-700 object-cover"
+                className="h-7 w-7 rounded-full border border-emerald-100 object-cover"
               />
             ) : (
-              <div className="flex h-7 w-7 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10 text-[10px] font-bold text-emerald-400">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full border border-emerald-200 bg-[#ECFDF5] text-[10px] font-bold text-emerald-700">
                 {organizerName.charAt(0).toUpperCase()}
               </div>
             )}
@@ -216,10 +216,10 @@ export const EventHero = ({ event, onShare, onRate, isAuthenticated = false }) =
               <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
                 Organized By
               </p>
-              <p className="flex items-center gap-1 text-xs font-bold text-emerald-400 sm:text-sm">
+              <p className="flex items-center gap-1 text-xs font-bold text-emerald-700 sm:text-sm">
                 <span>{organizerName}</span>
                 {event?.organizer?.verified && (
-                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
                 )}
               </p>
             </div>
@@ -228,39 +228,39 @@ export const EventHero = ({ event, onShare, onRate, isAuthenticated = false }) =
           {/* CHIPS ROW (Category, Team, Entry Fee) */}
           <div className="flex flex-wrap items-center gap-1.5">
             {event?.category && (
-              <span className="inline-flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-950/80 px-2.5 py-1 text-[10px] font-bold text-slate-300">
-                <Tag className="h-3 w-3 text-emerald-400" />
+              <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-100 bg-[#F8FBF9] px-2.5 py-1 text-[10px] font-bold text-slate-700">
+                <Tag className="h-3 w-3 text-emerald-600" />
                 {event.category}
               </span>
             )}
 
             {event?.participationType && (
-              <span className="inline-flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-950/80 px-2.5 py-1 text-[10px] font-bold text-slate-300">
-                <Users className="h-3 w-3 text-emerald-400" />
+              <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-100 bg-[#F8FBF9] px-2.5 py-1 text-[10px] font-bold text-slate-700">
+                <Users className="h-3 w-3 text-emerald-600" />
                 {event.participationType}
               </span>
             )}
 
             {entryFee && (
-              <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-extrabold text-emerald-300">
-                <Sparkles className="h-3 w-3 text-emerald-400" />
+              <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-[#ECFDF5] px-2.5 py-1 text-[10px] font-extrabold text-emerald-700">
+                <Sparkles className="h-3 w-3 text-emerald-600" />
                 {entryFee}
               </span>
             )}
           </div>
         </div>
 
-        <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-slate-800/80 bg-slate-950/70 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-emerald-100 bg-[#F8FBF9] p-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-700/80 bg-slate-900/80 px-2.5 py-1.5 text-[10px] font-bold text-slate-200 sm:text-xs">
-              <Eye className="h-3.5 w-3.5 text-emerald-400" />
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-white px-2.5 py-1.5 text-[10px] font-bold text-slate-700 sm:text-xs">
+              <Eye className="h-3.5 w-3.5 text-emerald-600" />
               {formatCompactMetric(viewCount)} views
             </span>
 
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-700/80 bg-slate-900/80 px-2.5 py-1.5 text-[10px] font-bold text-slate-200 sm:text-xs">
-              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-white px-2.5 py-1.5 text-[10px] font-bold text-slate-700 sm:text-xs">
+              <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
               {ratingValue > 0 ? ratingValue.toFixed(1) : "New"}
-              {ratingCount > 0 && <span className="text-slate-400">({ratingCount})</span>}
+              {ratingCount > 0 && <span className="text-slate-500">({ratingCount})</span>}
             </span>
           </div>
 
@@ -282,8 +282,8 @@ export const EventHero = ({ event, onShare, onRate, isAuthenticated = false }) =
                       <Star
                         className={`h-4 w-4 ${
                           isActive
-                            ? "fill-amber-400 text-amber-400"
-                            : "text-slate-600 group-hover:text-amber-300"
+                            ? "fill-amber-500 text-amber-500"
+                            : "text-slate-400 group-hover:text-amber-500"
                         } transition-colors duration-150`}
                       />
                     </button>
@@ -292,7 +292,7 @@ export const EventHero = ({ event, onShare, onRate, isAuthenticated = false }) =
               </div>
 
               {ratingMessage && (
-                <p className="text-[10px] font-medium text-emerald-300 sm:text-xs">
+                <p className="text-[10px] font-medium text-emerald-700 sm:text-xs">
                   {ratingMessage}
                 </p>
               )}

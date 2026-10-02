@@ -79,7 +79,7 @@ export default function OrganizerContact() {
                   {...register("organizerContact.whatsapp", {
                     required: "Official WhatsApp number is required",
                     pattern: {
-                      value: /^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/,
+                      value: /^\+?[0-9\s().-]{10,20}$/,
                       message: "Enter a valid phone number",
                     },
                   })}

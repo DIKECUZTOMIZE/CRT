@@ -1,7 +1,7 @@
 import { Navigate, Outlet, useLocation } from "react-router";
 import { useSelector } from "react-redux";
 
-import { getRoleHomePath, normalizeRole } from "../utils/roleUtils.js";
+import { getRoleHomePath, hasRoleAccess, normalizeRole } from "../utils/roleUtils.js";
 
 const ProtectedRoute = ({
   children,
@@ -15,14 +15,12 @@ const ProtectedRoute = ({
     return <Navigate to={redirectTo} replace state={{ from: location }} />;
   }
 
-  const normalizedRole = normalizeRole(user.role);
   const normalizedAllowedRoles = (allowedRoles ?? []).map(normalizeRole);
+  const hasAllowedAccess = normalizedAllowedRoles.some((role) => hasRoleAccess(user, role));
 
-  if (!normalizedAllowedRoles.includes(normalizedRole)) {
+  if (!hasAllowedAccess) {
     return <Navigate to={getRoleHomePath(user.role)} replace state={{ from: location }} />;
   }
 
   return children || <Outlet />;
 };
-
-export default ProtectedRoute;

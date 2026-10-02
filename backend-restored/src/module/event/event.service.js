@@ -1,4 +1,5 @@
-import EventModel from "../../model/event.model.js";
+import EventModel, { deriveEventStatus, shouldAutoCompleteByEndTime } from "../../model/event.model.js";
+import UserModel from "../../model/user.model.js";
 import { getRedisClient } from "../../config/redis.js";
 import {
     createEvent,
@@ -7,6 +8,7 @@ import {
     getEventsByOrganizer,
     updateEventByIdForOrganizer,
 } from "../../dao/event.dao.js";
+import { createNotificationService } from "../notification/notification.service.js";
 
 const PUBLIC_EVENTS_CACHE_TTL_SECONDS = 300;
 const DEFAULT_PUBLIC_EVENTS_CACHE_KEY = "public:events:default";
@@ -93,6 +95,82 @@ const refreshDefaultPublicEventsSnapshot = async (redisClient, total, page, limi
     }
 };
 
+const normalizeStateValue = (value) => String(value ?? "").trim();
+
+const getEligibleLocationStateUsers = async (state) => {
+    const normalizedState = normalizeStateValue(state);
+
+    if (!normalizedState || normalizedState === "India") {
+        return [];
+    }
+
+    return UserModel.find({
+        $and: [
+            {
+                $nor: [
+                    { role: "ADMIN" },
+                    { roles: "ADMIN" },
+                ],
+            },
+            {
+                $or: [
+                    { role: "USER" },
+                    { roles: "USER" },
+                ],
+            },
+            { "location.state": normalizedState },
+            {
+                $or: [
+                    { "location.isSelected": true },
+                    { "location.state": { $ne: "", $ne: "India" } },
+                ],
+            },
+        ],
+    }).select("_id role roles location").lean();
+};
+
+const notifyUsersForEventState = async ({ event, targetStates, notificationType = "event", title, message }) => {
+    const states = [...new Set(targetStates.filter((state) => normalizeStateValue(state) && normalizeStateValue(state) !== "India"))];
+
+    if (states.length === 0) {
+        return [];
+    }
+
+    const uniqueUsers = new Map();
+
+    for (const state of states) {
+        const users = await getEligibleLocationStateUsers(state);
+
+        for (const user of users) {
+            const userId = String(user._id);
+            if (!userId || uniqueUsers.has(userId)) {
+                continue;
+            }
+            uniqueUsers.set(userId, user);
+        }
+    }
+
+    const notifications = await Promise.all(
+        [...uniqueUsers.values()].map(({ _id }) =>
+            createNotificationService({
+                userId: _id,
+                title,
+                message,
+                type: notificationType,
+                link: `/events/${event._id}`,
+                metadata: {
+                    eventId: String(event._id),
+                    state: event.state || "",
+                    city: event.city || "",
+                    location: event.location || "",
+                },
+            })
+        )
+    );
+
+    return notifications;
+};
+
 export const createEventService = async (organizerId, payload) => {
     const participationConfig = payload.participation || {};
     const {
@@ -177,7 +255,23 @@ export const createEventService = async (organizerId, payload) => {
 
     await invalidatePublicEventsCache();
 
-    return event.toObject();
+    try {
+        const locationContext = [event.city, event.state].filter(Boolean).join(", ") || event.location || "your area";
+        const title = "New event is live";
+        const message = `${event.title || "A new event"} is now live in ${locationContext}. Explore it now.`;
+
+        await notifyUsersForEventState({
+            event,
+            targetStates: [event.state],
+            notificationType: "event",
+            title,
+            message,
+        });
+    } catch (error) {
+        // Do not fail event creation if notification delivery is unavailable.
+    }
+
+    return event && typeof event.toObject === "function" ? event.toObject() : event;
 };
 
 const buildFlexibleRegex = (value = "") => {
@@ -337,7 +431,12 @@ export const getPublicEventsService = async (filters = {}, pagination = {}) => {
                 .limit(limit)
                 .lean();
 
-            const result = normalizeDefaultPublicEventsResult(events, total, page, limit);
+            const normalizedEvents = events.map((event) => ({
+                ...event,
+                status: deriveEventStatus(event),
+            }));
+
+            const result = normalizeDefaultPublicEventsResult(normalizedEvents, total, page, limit);
 
             if (redisClient?.isOpen) {
                 try {
@@ -401,8 +500,17 @@ export const getPublicEventsService = async (filters = {}, pagination = {}) => {
                 EventModel.countDocuments(match),
             ]);
 
+            const normalizedEvents = [];
+            for (const event of events) {
+                const finalizedEvent = await finalizePastEndTimeEvent(event);
+                normalizedEvents.push({
+                    ...finalizedEvent,
+                    status: deriveEventStatus(finalizedEvent),
+                });
+            }
+
             result = {
-                events,
+                events: normalizedEvents,
                 total,
                 page,
                 limit,
@@ -555,8 +663,18 @@ export const getPublicEventsService = async (filters = {}, pagination = {}) => {
     }
 };
 
-export const getPublicEventByIdService = async (eventId) =>
-    EventModel.findById(eventId).lean();
+export const getPublicEventByIdService = async (eventId) => {
+    const event = await EventModel.findById(eventId).lean();
+    if (!event) {
+        return null;
+    }
+
+    const finalizedEvent = await finalizePastEndTimeEvent(event);
+    return {
+        ...finalizedEvent,
+        status: deriveEventStatus(finalizedEvent),
+    };
+};
 
 export const incrementEventViewsService = async (eventId) => {
     if (!eventId) return null;
@@ -606,40 +724,305 @@ export const submitEventRatingService = async (eventId, userId, rawRating) => {
     return event.toObject();
 };
 
-export const getOrganizerEventsService = (organizerId) =>
-    getEventsByOrganizer(organizerId);
-
-export const getOrganizerEventByIdService = (organizerId, eventId, userRole = "ORGANIZER") => {
-    if (userRole === "ADMIN") {
-        return EventModel.findOne({ _id: eventId }).lean();
+const finalizePastEndTimeEvent = async (event) => {
+    if (!event || typeof event !== "object") {
+        return event;
     }
 
-    return getEventByIdForOrganizer(organizerId, eventId);
+    const currentStatus = String(event.status || "").trim().toLowerCase();
+    if (["completed", "ended", "cancelled", "postponed"].includes(currentStatus) || event.completionConfirmedAt) {
+        return event;
+    }
+
+    if (!shouldAutoCompleteByEndTime(event)) {
+        return event;
+    }
+
+    const completionConfirmedAt = new Date();
+    const updatedEvent = await EventModel.findOneAndUpdate(
+        {
+            _id: event._id,
+            status: { $in: ["upcoming", "live"] },
+            completionConfirmedAt: null,
+        },
+        { $set: { status: "completed", completionConfirmedAt } },
+        { new: true, runValidators: true }
+    ).lean();
+
+    if (!updatedEvent) {
+        return event;
+    }
+
+    await invalidatePublicEventsCache();
+    return updatedEvent;
+};
+
+export const autoCompleteExpiredEvents = async () => {
+    const expiredCandidates = await EventModel.find({
+        status: { $in: ["upcoming", "live"] },
+        completionConfirmedAt: null,
+    }).lean();
+
+    if (!Array.isArray(expiredCandidates) || expiredCandidates.length === 0) {
+        return { completed: 0, updatedEvents: [] };
+    }
+
+    const updatedEvents = [];
+
+    for (const event of expiredCandidates) {
+        if (!shouldAutoCompleteByEndTime(event)) {
+            continue;
+        }
+
+        const completionConfirmedAt = new Date();
+        const result = await EventModel.findOneAndUpdate(
+            {
+                _id: event._id,
+                status: { $in: ["upcoming", "live"] },
+                completionConfirmedAt: null,
+            },
+            { $set: { status: "completed", completionConfirmedAt } },
+            { new: true, runValidators: true }
+        ).lean();
+
+        if (result) {
+            updatedEvents.push({
+                _id: result._id,
+                status: result.status,
+                completionConfirmedAt: result.completionConfirmedAt,
+            });
+        }
+    }
+
+    if (updatedEvents.length > 0) {
+        await invalidatePublicEventsCache();
+    }
+
+    return { completed: updatedEvents.length, updatedEvents };
+};
+
+export const getOrganizerEventsService = async (organizerId) => {
+    const events = await getEventsByOrganizer(organizerId);
+
+    const finalizedEvents = [];
+    for (const event of events) {
+        const finalizedEvent = await finalizePastEndTimeEvent(event);
+        finalizedEvents.push({
+            ...finalizedEvent,
+            status: deriveEventStatus(finalizedEvent),
+        });
+    }
+
+    return finalizedEvents;
+};
+
+export const getOrganizerEventByIdService = async (organizerId, eventId, userRole = "ORGANIZER") => {
+    if (userRole === "ADMIN") {
+        const event = await EventModel.findOne({ _id: eventId }).lean();
+        if (!event) {
+            return null;
+        }
+
+        return finalizePastEndTimeEvent(event);
+    }
+
+    const event = await getEventByIdForOrganizer(organizerId, eventId);
+    if (!event) {
+        return null;
+    }
+
+    const finalizedEvent = await finalizePastEndTimeEvent(event);
+    return {
+        ...finalizedEvent,
+        status: deriveEventStatus(finalizedEvent),
+    };
+};
+
+const normalizeEventStatus = (value) => {
+    if (typeof value !== "string") return value;
+
+    const lower = value.trim().toLowerCase();
+    const aliases = {
+        cancel: "cancelled",
+        cancelled: "cancelled",
+        canceled: "cancelled",
+        popond: "postponed",
+        pospond: "postponed",
+        postpon: "postponed",
+        postpond: "postponed",
+        postponed: "postponed",
+        complete: "completed",
+        completed: "completed",
+        end: "ended",
+        ended: "ended",
+    };
+
+    return aliases[lower] ?? lower;
+};
+
+const parseEventTimeString = (value) => {
+    if (!value || typeof value !== "string") return null;
+
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const meridiemMatch = trimmed.match(/^([0-9]{1,2}):([0-9]{2})(?::([0-9]{2}))?\s*([AaPp][Mm])$/);
+    if (meridiemMatch) {
+        let hours = Number(meridiemMatch[1]);
+        const minutes = Number(meridiemMatch[2]);
+        const seconds = Number(meridiemMatch[3] ?? 0);
+        const meridiem = meridiemMatch[4].toUpperCase();
+
+        if (meridiem === "AM" && hours === 12) hours = 0;
+        if (meridiem === "PM" && hours !== 12) hours += 12;
+
+        return { hours, minutes, seconds };
+    }
+
+    const standardMatch = trimmed.match(/^([0-9]{1,2}):([0-9]{2})(?::([0-9]{2}))?$/);
+    if (standardMatch) {
+        return {
+            hours: Number(standardMatch[1]),
+            minutes: Number(standardMatch[2]),
+            seconds: Number(standardMatch[3] ?? 0),
+        };
+    }
+
+    return null;
+};
+
+const isEventPastEndTime = (event) => {
+    if (!event) return false;
+
+    const normalizedStatus = String(event.status || "").trim().toLowerCase();
+    if (normalizedStatus === "completed" || normalizedStatus === "ended") {
+        return true;
+    }
+
+    const endDateValue = event.eventEndDate || event.eventEnd || event.eventDate || event.eventStart;
+    const endTimeValue = event.eventEndTime || event.eventTime || event.eventStartTime;
+
+    if (!endDateValue) {
+        return false;
+    }
+
+    const endDate = new Date(endDateValue);
+    if (Number.isNaN(endDate.getTime())) {
+        return false;
+    }
+
+    const parsedTime = parseEventTimeString(endTimeValue);
+    if (parsedTime) {
+        endDate.setHours(parsedTime.hours, parsedTime.minutes, parsedTime.seconds, 0);
+    } else {
+        endDate.setHours(23, 59, 59, 999);
+    }
+
+    return new Date() >= endDate;
+};
+
+const isOnlyCompletionPayload = (payload = {}) => {
+    if (!payload || typeof payload !== "object") return false;
+
+    const keys = Object.keys(payload);
+    if (keys.length === 0) return false;
+
+    return keys.every((key) => key === "status" || key === "completionConfirmedAt");
+};
+
+const isFinalCompletionConfirmed = (event) => {
+    if (!event || typeof event !== "object") {
+        return false;
+    }
+
+    if (event.completionConfirmedAt) {
+        return true;
+    }
+
+    return String(event.status || "").trim().toLowerCase() === "completed"
+        && Array.isArray(event.results)
+        && event.results.length > 0;
+};
+
+const normalizeResultEntries = (results = []) => {
+    if (!Array.isArray(results)) {
+        return [];
+    }
+
+    return results.map((entry) => {
+        if (!entry || typeof entry !== "object") {
+            throw new Error("Each result entry must be an object.");
+        }
+
+        const participation = String(entry?.participation ?? entry?.participationType ?? "Solo").trim();
+        const position = String(entry?.position ?? "1st").trim();
+        const name = String(entry?.name ?? entry?.winnerName ?? "").trim();
+
+        if (!participation) {
+            throw new Error("Result participation is required.");
+        }
+
+        if (!position) {
+            throw new Error("Result position is required.");
+        }
+
+        if (!name) {
+            throw new Error("Winner/team name is required.");
+        }
+
+        return {
+            participation,
+            participationType: participation,
+            position,
+            name,
+            winnerName: name,
+        };
+    });
 };
 
 export const updateEventService = async (organizerId, eventId, payload, userRole = "ORGANIZER") => {
     const normalizedPayload = { ...payload };
 
     if (normalizedPayload.status) {
-        normalizedPayload.status = (() => {
-            const lower = String(normalizedPayload.status).trim().toLowerCase();
-            const aliases = {
-                cancel: "cancelled",
-                cancelled: "cancelled",
-                canceled: "cancelled",
-                popond: "postponed",
-                pospond: "postponed",
-                postpon: "postponed",
-                postpond: "postponed",
-                postponed: "postponed",
-                complete: "completed",
-                completed: "completed",
-                end: "ended",
-                ended: "ended",
-            };
+        normalizedPayload.status = normalizeEventStatus(normalizedPayload.status);
+    }
 
-            return aliases[lower] ?? lower;
-        })();
+    if (Object.prototype.hasOwnProperty.call(normalizedPayload, "results")) {
+        normalizedPayload.results = normalizeResultEntries(normalizedPayload.results);
+    }
+
+    if (userRole !== "ADMIN") {
+        const existingEvent = await EventModel.findOne({ _id: eventId, organizerId }).lean();
+
+        if (!existingEvent) {
+            return null;
+        }
+
+        const eventIsCompleted = String(existingEvent.status || "").trim().toLowerCase() === "completed";
+        const eventIsFinalCompletion = isFinalCompletionConfirmed(existingEvent);
+        const requestedStatus = normalizedPayload.status ? normalizeEventStatus(normalizedPayload.status) : null;
+        const allowedCompletion = requestedStatus === "completed" && isOnlyCompletionPayload(normalizedPayload);
+        const isResultUpdate = Object.prototype.hasOwnProperty.call(normalizedPayload, "results");
+        const isCompletionConfirmation = requestedStatus === "completed" && Object.prototype.hasOwnProperty.call(normalizedPayload, "completionConfirmedAt");
+        const hasExistingResults = Array.isArray(existingEvent.results) && existingEvent.results.length > 0;
+
+        if (requestedStatus === "completed") {
+            throw new Error("Organizer manual completion is forbidden. Only admins can finalize an event.");
+        }
+
+        if (isResultUpdate && !(eventIsCompleted || eventIsFinalCompletion || hasExistingResults || isCompletionConfirmation)) {
+            throw new Error("Results can only be saved after the event is finally completed.");
+        }
+
+        if ((eventIsCompleted || eventIsFinalCompletion) && !isResultUpdate && !isCompletionConfirmation && !allowedCompletion) {
+            throw new Error("This event is already completed and cannot be edited or changed.");
+        }
+
+        const derivedStatus = deriveEventStatus({ ...existingEvent, ...normalizedPayload, status: normalizedPayload.status || existingEvent.status || "upcoming" });
+        if (["upcoming", "live"].includes(String(existingEvent.status || "").trim().toLowerCase()) && derivedStatus === "completed") {
+            normalizedPayload.status = "completed";
+            normalizedPayload.completionConfirmedAt = new Date().toISOString();
+        }
     }
 
     if (userRole === "ADMIN") {
@@ -656,7 +1039,117 @@ export const updateEventService = async (organizerId, eventId, payload, userRole
         return updatedEvent;
     }
 
+    const previousEvent = await EventModel.findOne({ _id: eventId, organizerId }).lean();
+    const previousState = previousEvent ? normalizeStateValue(previousEvent.state) : "";
+
     const updatedEvent = await updateEventByIdForOrganizer(organizerId, eventId, normalizedPayload);
+
+    if (!updatedEvent) {
+        return null;
+    }
+
+    try {
+        const newState = normalizeStateValue(updatedEvent.state);
+        const statesToNotify = [...new Set([previousState, newState].filter(Boolean))];
+
+        if (statesToNotify.length === 0) {
+            await invalidatePublicEventsCache();
+            return updatedEvent;
+        }
+
+        const notificationTitle = previousState && previousState !== newState
+            ? `Event update in ${previousState}`
+            : `Event update in ${newState || previousState}`;
+
+        const oldStateUsers = previousState && previousState !== newState
+            ? await getEligibleLocationStateUsers(previousState)
+            : [];
+        const newStateUsers = newState ? await getEligibleLocationStateUsers(newState) : [];
+        const dedupedUserIds = new Set();
+
+        const oldStateUserIds = oldStateUsers.map(({ _id }) => String(_id));
+        const newStateUserIds = newStateUsers.map(({ _id }) => String(_id));
+
+        [...oldStateUserIds, ...newStateUserIds].forEach((userId) => {
+            if (userId) {
+                dedupedUserIds.add(userId);
+            }
+        });
+
+        const locationContext = [updatedEvent.city, updatedEvent.state].filter(Boolean).join(", ") || updatedEvent.location || "your area";
+        const oldStateMessage = `${updatedEvent.title || "An event"} moved out of ${previousState} and is no longer listed there.`;
+        const newStateMessage = `${updatedEvent.title || "An event"} is now live in ${locationContext}. Explore it now.`;
+
+        for (const userId of [...dedupedUserIds]) {
+            const userState = await UserModel.findById(userId).select("location").lean();
+            const userSelectedState = normalizeStateValue(userState?.location?.state);
+
+            if (previousState && previousState !== newState && userSelectedState === previousState) {
+                await createNotificationService({
+                    userId,
+                    title: "Event update",
+                    message: oldStateMessage,
+                    type: "event",
+                    link: `/events/${updatedEvent._id}`,
+                    metadata: {
+                        eventId: String(updatedEvent._id),
+                        state: previousState,
+                        city: updatedEvent.city || "",
+                        location: updatedEvent.location || "",
+                    },
+                });
+            }
+
+            if (newState && userSelectedState === newState) {
+                await createNotificationService({
+                    userId,
+                    title: notificationTitle,
+                    message: newStateMessage,
+                    type: "event",
+                    link: `/events/${updatedEvent._id}`,
+                    metadata: {
+                        eventId: String(updatedEvent._id),
+                        state: updatedEvent.state || "",
+                        city: updatedEvent.city || "",
+                        location: updatedEvent.location || "",
+                    },
+                });
+            }
+        }
+    } catch (error) {
+        // Do not fail event updates if notification delivery is unavailable.
+    }
+
+    await invalidatePublicEventsCache();
+
+    return updatedEvent;
+};
+
+export const completeEventService = async (organizerId, eventId, userRole = "ORGANIZER") => {
+    const query = userRole === "ADMIN"
+        ? { _id: eventId }
+        : { _id: eventId, organizerId };
+
+    const existingEvent = await EventModel.findOne(query).lean();
+
+    if (!existingEvent) {
+        return null;
+    }
+
+    const currentStatus = String(existingEvent.status || "").trim().toLowerCase();
+    if (currentStatus === "completed") {
+        const error = new Error("This event is already completed. Use Update to confirm the final completion.");
+        error.statusCode = 409;
+        throw error;
+    }
+
+    const completionConfirmedAt = new Date().toISOString();
+
+    const updatedEvent = await EventModel.findOneAndUpdate(
+        query,
+        { $set: { status: "completed", completionConfirmedAt } },
+        { new: true, runValidators: true }
+    ).lean();
 
     if (!updatedEvent) {
         return null;

@@ -11,7 +11,7 @@ import CreateEvent from "./feature/EventCreate/page/ui/CreateEvent.jsx";
 import OrganizerProfile from "./feature/Profile/ui/page/OrganizerProfile.jsx";
 import PlatformSupport from "./feature/Support/PlatformSupport.jsx";
 import OrganizerEventDetails from "./feature/OrganizerEventDetails/page/ui/OrganizerEventDetails.jsx";
-import { isOrganizerRole } from "./app/utils/roleUtils.js";
+import { isAdminRole, isOrganizerRole, isUserRole } from "./app/utils/roleUtils.js";
 
 const ProtectedOrganizerRoute = ({ children }) => {
   const { status, user } = useSelector((state) => state.auth);
@@ -20,13 +20,13 @@ const ProtectedOrganizerRoute = ({ children }) => {
     return <Navigate to="/organizer/login" replace />;
   }
 
-  if (!isOrganizerRole(user.role)) {
-    if (user.role === "ADMIN") {
+  if (!isOrganizerRole(user)) {
+    if (isAdminRole(user)) {
       window.location.replace("http://localhost:5174/admin/dashboard");
       return null;
     }
 
-    if (user.role === "USER") {
+    if (isUserRole(user)) {
       window.location.replace("http://localhost:5173/profile");
       return null;
     }
@@ -40,17 +40,17 @@ const ProtectedOrganizerRoute = ({ children }) => {
 const PublicOrganizerRoute = ({ children }) => {
   const { status, user } = useSelector((state) => state.auth);
 
-  if (status === "authenticated" && user && isOrganizerRole(user.role)) {
+  if (status === "authenticated" && user && isOrganizerRole(user)) {
     return <Navigate to="/organizer/dashboard" replace />;
   }
 
   if (status === "authenticated" && user) {
-    if (user.role === "ADMIN") {
+    if (isAdminRole(user)) {
       window.location.replace("http://localhost:5174/admin/dashboard");
       return null;
     }
 
-    if (user.role === "USER") {
+    if (isUserRole(user)) {
       window.location.replace("http://localhost:5173/profile");
       return null;
     }

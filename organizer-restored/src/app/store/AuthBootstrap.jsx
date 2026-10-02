@@ -23,7 +23,7 @@ const AuthBootstrap = ({ children }) => {
 
   useEffect(() => {
     if (status === "authenticated" && user && AUTH_PATHS.has(currentPath)) {
-      if (isOrganizerRole(user.role)) {
+      if (isOrganizerRole(user)) {
         window.location.replace("/organizer/dashboard");
       } else {
         window.location.replace("/organizer/login");
