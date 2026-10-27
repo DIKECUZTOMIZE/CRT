@@ -181,6 +181,7 @@ test('update event with same state notifies the same state only once', async () 
 
   await updateEventService(String(organizer._id), String(event._id), {
     title: 'Same State Update Event',
+    description: 'Changed description',
     state: 'Assam',
   });
 
@@ -190,6 +191,19 @@ test('update event with same state notifies the same state only once', async () 
   }).lean();
 
   assert.equal(notifications.length, 1, 'same-state update should notify only once for the target user');
+
+  await updateEventService(String(organizer._id), String(event._id), {
+    title: 'Same State Update Event',
+    description: 'Changed description',
+    state: 'Assam',
+  });
+
+  const afterIdentical = await NotificationModel.find({
+    userId: String(assamUser._id),
+    'metadata.eventId': String(event._id),
+  }).lean();
+
+  assert.equal(afterIdentical.length, 1, 'saving identical values should not create another notification');
 
   await UserModel.findByIdAndDelete(organizer._id);
   await UserModel.findByIdAndDelete(assamUser._id);
@@ -270,4 +284,54 @@ test('update event notifies both old-state and new-state users without notifying
   await UserModel.findByIdAndDelete(assamUser._id);
   await UserModel.findByIdAndDelete(meghalayaUser._id);
   await UserModel.findByIdAndDelete(nagalandUser._id);
+});
+
+test('saving identical values on an event with participationSteps does not create a new notification', async () => {
+  const organizer = await UserModel.create({
+    username: `org-steps-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    email: `org-steps-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`,
+    password: 'Password123!',
+    role: 'ORGANIZER',
+    fullName: 'Organizer',
+  });
+
+  const participationSteps = [
+    { title: 'Register', text: 'Sign up online' },
+    { title: 'Attend', text: 'Come to the venue' },
+  ];
+
+  const event = await createEventService(String(organizer._id), {
+    title: 'Steps Event',
+    category: 'Technology',
+    eventMode: 'Offline',
+    state: 'Assam',
+    city: 'Guwahati',
+    location: 'Guwahati, Assam',
+    participationSteps,
+  });
+
+  const assamUser = await UserModel.create({
+    username: `assam-steps-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    email: `assam-steps-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`,
+    password: 'Password123!',
+    role: 'USER',
+    fullName: 'Assam Steps User',
+    location: { country: 'India', state: 'Assam', city: 'Guwahati', isSelected: true },
+  });
+
+  const countNotifications = () => NotificationModel.countDocuments({
+    userId: String(assamUser._id),
+    'metadata.eventId': String(event._id),
+  });
+
+  await updateEventService(String(organizer._id), String(event._id), { participationSteps });
+  assert.equal(await countNotifications(), 0, 'identical save should not notify');
+
+  await updateEventService(String(organizer._id), String(event._id), {
+    participationSteps: [{ title: 'Register', text: 'Sign up at the desk' }],
+  });
+  assert.equal(await countNotifications(), 1, 'changing a participation step should notify once');
+
+  await UserModel.findByIdAndDelete(organizer._id);
+  await UserModel.findByIdAndDelete(assamUser._id);
 });

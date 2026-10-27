@@ -54,16 +54,16 @@ export default function SavedEventsCard({ savedList = [], onRefresh, onRemove })
   const navigate = useNavigate();
 
   return (
-    <div className="space-y-4 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+    <div className="space-y-4 overflow-hidden rounded-2xl border border-emerald-100 bg-white p-5">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-emerald-400">
+        <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-emerald-600">
           <Bookmark className="h-4 w-4" /> Wishlist Events
         </h3>
         {onRefresh && (
           <button
             type="button"
             onClick={() => onRefresh()}
-            className="text-[10px] font-medium text-slate-400 underline-offset-2 hover:text-slate-200 hover:underline"
+            className="text-[10px] font-medium text-slate-600 underline-offset-2 hover:text-slate-900 hover:underline"
           >
             Refresh
           </button>
@@ -72,7 +72,7 @@ export default function SavedEventsCard({ savedList = [], onRefresh, onRemove })
 
       <div className="space-y-2.5">
         {savedList.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-slate-700 p-4 text-xs text-slate-400">
+          <p className="rounded-xl border border-dashed border-emerald-200 p-4 text-xs text-slate-600">
             No saved events yet.
           </p>
         ) : savedList.map((item) => {
@@ -81,7 +81,7 @@ export default function SavedEventsCard({ savedList = [], onRefresh, onRemove })
           return (
             <div
               key={eventId}
-              className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-800/80 bg-slate-950/40 p-2 text-xs transition hover:border-emerald-500/40 hover:bg-slate-900/80"
+              className="flex min-w-0 items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50/60 p-2 text-xs transition hover:border-emerald-500/40 hover:bg-slate-900/80"
             >
               <button
                 type="button"
@@ -89,17 +89,17 @@ export default function SavedEventsCard({ savedList = [], onRefresh, onRemove })
                 className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-lg p-2 text-left"
               >
                 <div className="min-w-0 flex-1 space-y-1">
-                  <p className="break-words font-semibold text-slate-200">{item.title}</p>
-                  <div className="flex min-w-0 items-center gap-1.5 text-slate-400">
-                    <MapPin className="h-3 w-3 shrink-0 text-emerald-400" />
+                  <p className="break-words font-semibold text-slate-800">{item.title}</p>
+                  <div className="flex min-w-0 items-center gap-1.5 text-slate-600">
+                    <MapPin className="h-3 w-3 shrink-0 text-emerald-600" />
                     <span className="min-w-0 break-words">{normalizeLocationValue(item)}</span>
                   </div>
-                  <div className="flex min-w-0 items-center gap-1.5 text-slate-400">
-                    <CalendarDays className="h-3 w-3 shrink-0 text-emerald-400" />
+                  <div className="flex min-w-0 items-center gap-1.5 text-slate-600">
+                    <CalendarDays className="h-3 w-3 shrink-0 text-emerald-600" />
                     <span className="break-words">{formatSavedDate(item.eventDate || item.eventStart)}</span>
                   </div>
                 </div>
-                <span className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold text-emerald-300">
+                <span className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold text-emerald-700">
                   {item.status || "Upcoming"}
                 </span>
               </button>
@@ -112,7 +112,7 @@ export default function SavedEventsCard({ savedList = [], onRefresh, onRemove })
                     event.stopPropagation();
                     onRemove(eventId);
                   }}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-300 transition hover:border-rose-400 hover:bg-rose-500/15"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-700 transition hover:border-rose-400 hover:bg-rose-500/15"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>

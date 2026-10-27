@@ -3,6 +3,7 @@ import { AlertCircle } from "lucide-react";
 
 export default function FormField({
   label,
+  htmlFor,
   required = false,
   hint,
   error,
@@ -14,11 +15,14 @@ export default function FormField({
       {/* LABEL & HINT */}
       {label && (
         <div className="flex items-center justify-between gap-2">
-          <label className="form-field-label text-xs font-semibold sm:text-sm">
+          <label
+            htmlFor={htmlFor}
+            className="form-field-label text-xs font-semibold text-slate-200 sm:text-sm"
+          >
             {label}
             {required && <span className="ml-1 text-rose-400">*</span>}
           </label>
-          {hint && <span className="form-field-hint text-[11px] font-normal">{hint}</span>}
+          {hint && <span className="form-field-hint text-[11px] font-normal text-slate-400">{hint}</span>}
         </div>
       )}
 

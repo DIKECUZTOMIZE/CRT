@@ -10,7 +10,6 @@ export const normalizePath = (path) => {
 
 export const shouldBootstrapAuthForPath = (path, status = "idle") => {
   const normalizedPath = normalizePath(path);
-  const isPublicRoute = PUBLIC_PATHS.has(normalizedPath);
   const isAuthRoute = AUTH_PATHS.has(normalizedPath);
 
   if (status !== "idle") return false;

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 
@@ -8,6 +8,8 @@ import {
   markAllNotificationsRead,
 } from "../api/notification.api.js";
 import { matchesSelectedState } from "../utils/notificationStateMatcher.js";
+import { subscribeToNotificationRealtime } from "../utils/notificationRealtime.js";
+import { socket, joinUserRoom, listenToNotifications } from "../../../app/config/socket.js";
 
 export { matchesSelectedState };
 
@@ -25,6 +27,23 @@ export const useNotifications = (selectedState = "") => {
     refetchOnReconnect: true,
     retry: 1,
   });
+
+  const userId = user?._id || user?.id;
+
+  useEffect(() => {
+    if (!userId) {
+      return undefined;
+    }
+
+    return subscribeToNotificationRealtime({
+      socket,
+      joinUserRoom,
+      listenToNotifications,
+      onUpdate: () => {
+        queryClient.invalidateQueries({ queryKey: ["user-notifications"] });
+      },
+    });
+  }, [userId, queryClient]);
 
   const allNotifications = useMemo(
     () => (Array.isArray(notificationsQuery.data?.notifications)

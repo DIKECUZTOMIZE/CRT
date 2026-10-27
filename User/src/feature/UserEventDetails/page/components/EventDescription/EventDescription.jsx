@@ -62,7 +62,7 @@ const ExpandableContent = ({ content }) => {
   );
 };
 
-export const EventDescription = ({ description }) => {
+export const EventDescription = ({ description, open, onToggle }) => {
   if (!description) {
     return null;
   }
@@ -124,6 +124,8 @@ export const EventDescription = ({ description }) => {
       title="Description"
       icon={FileText}
       initialOpen={false}
+      open={open}
+      onToggle={onToggle}
       viewLabel="View details"
       hideLabel="Hide details"
       iconClassName="panel-icon--emerald"

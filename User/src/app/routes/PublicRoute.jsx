@@ -45,7 +45,7 @@ const PublicLayout = ({ children }) => {
   }, [dispatch]);
 
   return (
-    <div className="flex min-h-screen flex-col justify-between overflow-x-hidden bg-[#FAFCFA] text-slate-900">
+    <div className="flex min-h-screen flex-col justify-between overflow-x-clip bg-[#FAFCFA] text-slate-900">
       <Navbar />
       <GlobalLocationBadge />
 

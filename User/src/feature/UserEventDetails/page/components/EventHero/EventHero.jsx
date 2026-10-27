@@ -180,7 +180,7 @@ export const EventHero = ({ event, onShare, onRate, isAuthenticated = false }) =
 
         {/* MOBILE OVERLAY: DAYS REMAINING (Bottom Left on Image) */}
         {daysRemainingText && (
-          <div className="absolute bottom-3 left-3 sm:hidden">
+          <div className="hidden absolute bottom-3 left-3 sm:hidden">
             <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-white/90 px-2 py-0.5 text-[10px] font-bold text-emerald-700 backdrop-blur-md">
               <Calendar className="h-2.5 w-2.5 shrink-0" />
               {daysRemainingText}
@@ -242,7 +242,7 @@ export const EventHero = ({ event, onShare, onRate, isAuthenticated = false }) =
             )}
 
             {entryFee && (
-              <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-[#ECFDF5] px-2.5 py-1 text-[10px] font-extrabold text-emerald-700">
+              <span className="hidden items-center gap-1 rounded-lg border border-emerald-200 bg-[#ECFDF5] px-2.5 py-1 text-[10px] font-extrabold text-emerald-700">
                 <Sparkles className="h-3 w-3 text-emerald-600" />
                 {entryFee}
               </span>

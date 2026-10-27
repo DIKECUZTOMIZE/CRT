@@ -4,15 +4,15 @@ import { useNavigate } from "react-router";
 import { getCurrentAdmin, loginAdmin, logoutAdmin } from "../api/authApi.js";
 import { isAdminUser } from "../../../utils/adminAuth.js";
 
-export const useAdminAuth = () => {
+export const useAdminAuth = ({ skipRefresh = false } = {}) => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const refreshUser = useCallback(async () => {
+  const refreshUser = useCallback(async (options = {}) => {
     try {
-      const currentUser = await getCurrentAdmin();
+      const currentUser = await getCurrentAdmin(options);
 
       if (!currentUser || !isAdminUser(currentUser)) {
         setUser(null);
@@ -34,7 +34,7 @@ export const useAdminAuth = () => {
 
     const loadUser = async () => {
       setLoading(true);
-      const result = await refreshUser();
+      const result = await refreshUser({ skipAuthRefresh: skipRefresh });
       if (active && result) {
         setUser(result);
       }
@@ -48,7 +48,7 @@ export const useAdminAuth = () => {
     return () => {
       active = false;
     };
-  }, [refreshUser]);
+  }, [refreshUser, skipRefresh]);
 
   const login = useCallback(async (form) => {
     setError("");

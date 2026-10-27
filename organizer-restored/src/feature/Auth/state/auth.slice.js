@@ -51,7 +51,8 @@ export const bootstrapAuth = createAsyncThunk(
       }
       return rejectWithValue(error.message);
     }
-  }
+  },
+  { condition: (_, { getState }) => getState().auth.status !== "loading" }
 );
 
 export const loginUser = createAsyncThunk(

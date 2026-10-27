@@ -13,6 +13,14 @@ import PlatformSupport from "./feature/Support/PlatformSupport.jsx";
 import OrganizerEventDetails from "./feature/OrganizerEventDetails/page/ui/OrganizerEventDetails.jsx";
 import { isAdminRole, isOrganizerRole, isUserRole } from "./app/utils/roleUtils.js";
 
+const isProduction = import.meta.env.VITE_APP_ENV === "production";
+const adminDashboardUrl = isProduction
+  ? "https://admin.crtcompete.com/admin/dashboard"
+  : "http://localhost:5174/admin/dashboard";
+const userProfileUrl = isProduction
+  ? "https://www.crtcompete.com/profile"
+  : "http://localhost:5173/profile";
+
 const ProtectedOrganizerRoute = ({ children }) => {
   const { status, user } = useSelector((state) => state.auth);
 
@@ -22,12 +30,12 @@ const ProtectedOrganizerRoute = ({ children }) => {
 
   if (!isOrganizerRole(user)) {
     if (isAdminRole(user)) {
-      window.location.replace("http://localhost:5174/admin/dashboard");
+      window.location.replace(adminDashboardUrl);
       return null;
     }
 
     if (isUserRole(user)) {
-      window.location.replace("http://localhost:5173/profile");
+      window.location.replace(userProfileUrl);
       return null;
     }
 
@@ -46,12 +54,12 @@ const PublicOrganizerRoute = ({ children }) => {
 
   if (status === "authenticated" && user) {
     if (isAdminRole(user)) {
-      window.location.replace("http://localhost:5174/admin/dashboard");
+      window.location.replace(adminDashboardUrl);
       return null;
     }
 
     if (isUserRole(user)) {
-      window.location.replace("http://localhost:5173/profile");
+      window.location.replace(userProfileUrl);
       return null;
     }
   }

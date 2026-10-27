@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
+const devPort = Number(process.env.VITE_DEV_PORT) || 5175;
+
 export default defineConfig({
   plugins: [
     react(),
@@ -64,11 +66,11 @@ export default defineConfig({
   ],
   server: {
     host: "0.0.0.0",
-    port: 5175,
+    port: devPort,
     strictPort: true,
     hmr: {
-      host: "localhost",
-      port: 5175,
+      host: process.env.VITE_HMR_HOST || "localhost",
+      port: Number(process.env.VITE_HMR_PORT) || devPort,
       protocol: "ws",
     },
   },

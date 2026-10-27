@@ -19,8 +19,6 @@ const runtime = new Function(
 
 const { parseTimeValue, combineDateTime, deriveEventStatus } = runtime;
 
-const formatMs = (value) => new Date(value).getTime();
-
 test('parseTimeValue supports HH:MM AM/PM', () => {
   const parsed = parseTimeValue('8:33 PM');
   assert.ok(parsed instanceof Date);
@@ -54,10 +52,11 @@ test('parseTimeValue supports HH:MM:SS 24-hour', () => {
 });
 
 test('future event with seconds derives upcoming', () => {
-  const now = Date.now();
-  const futureDate = new Date(now + 60 * 60 * 1000).toISOString().slice(0, 10);
-  const futureStart = new Date(now + 60 * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
-  const futureEnd = new Date(now + 60 * 60 * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const futureDate = tomorrow.toISOString();
+  const futureStart = '09:00:10 AM';
+  const futureEnd = '10:00:10 AM';
 
   const result = deriveEventStatus({
     eventDate: futureDate,
@@ -71,8 +70,9 @@ test('future event with seconds derives upcoming', () => {
 });
 
 test('past event derives completed', () => {
-  const pastDate = new Date(Date.now() - 2 * 60 * 60 * 1000);
-  const dateString = pastDate.toISOString().slice(0, 10);
+  const pastDate = new Date();
+  pastDate.setDate(pastDate.getDate() - 1);
+  const dateString = pastDate.toISOString();
   const startTime = '09:00:00 AM';
   const endTime = '10:00:00 AM';
 
@@ -97,6 +97,16 @@ test('date-only values without explicit status stay upcoming', () => {
   });
 
   assert.equal(result, 'upcoming');
+});
+
+test('canceled status stays cancelled instead of being re-derived by date', () => {
+  const result = deriveEventStatus({
+    status: 'canceled',
+    eventDate: '2030-01-01',
+    eventEndDate: '2030-01-02',
+  });
+
+  assert.equal(result, 'cancelled');
 });
 
 test('combineDateTime preserves seconds when the input includes them', () => {

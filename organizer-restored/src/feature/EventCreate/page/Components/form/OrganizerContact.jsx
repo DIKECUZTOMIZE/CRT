@@ -1,49 +1,39 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useFormContext } from "react-hook-form";
 import {
   User,
   Phone,
-  Mail,
   MessageSquare,
-  Globe,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 import FormSection from "../common/FormSection";
 
 export default function OrganizerContact() {
   const {
     register,
-    formState: { errors },
+    formState: { errors, submitCount },
   } = useFormContext();
 
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const nameError = errors?.organizerContact?.name;
+  const whatsappError = errors?.organizerContact?.whatsapp;
+
+  useEffect(() => {
+    if (nameError || whatsappError) {
+      setIsExpanded(true);
+    }
+  }, [nameError, whatsappError, submitCount]);
 
   return (
     <FormSection
       icon={Phone}
       title="Organizer Contact Details"
       description="Provide direct contact info so participants can reach out for queries or help."
+      onToggle={() => setIsExpanded(!isExpanded)}
+      isExpanded={isExpanded}
+      toggleLabel={isExpanded ? "Collapse organizer contact details" : "Expand organizer contact details"}
+      action={null}
     >
-      <div className="space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-          <button
-            type="button"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex w-full items-center justify-between rounded-lg py-1 text-left text-xs font-semibold text-slate-700 transition-colors hover:text-emerald-700 focus:outline-none"
-          >
-            <span className="truncate pr-2">
-              Organizer & Helpdesk Info
-            </span>
-            {isExpanded ? (
-              <ChevronUp className="h-4 w-4 shrink-0 text-slate-500" />
-            ) : (
-              <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" />
-            )}
-          </button>
-        </div>
-
-        {isExpanded && (
+        <div className={isExpanded ? "space-y-4" : "hidden"}>
           <div className="grid grid-cols-1 gap-4 transition-all sm:grid-cols-2">
             <div className="space-y-1">
               <label className="block text-[11px] font-medium text-slate-600">
@@ -53,16 +43,16 @@ export default function OrganizerContact() {
                 <User className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="e.g. Rahul Sharma (Lead Organizer)"
+                  placeholder="e.g. Amit Sharma"
                   {...register("organizerContact.name", {
                     required: "Contact person name is required",
                   })}
                   className="h-9 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-xs text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
               </div>
-              {errors?.organizerContact?.name && (
+              {nameError && (
                 <p className="text-[10px] text-rose-500">
-                  {errors.organizerContact.name.message}
+                  {nameError.message}
                 </p>
               )}
             </div>
@@ -75,7 +65,7 @@ export default function OrganizerContact() {
                 <MessageSquare className="absolute left-3 top-2.5 h-4 w-4 text-emerald-600" />
                 <input
                   type="tel"
-                  placeholder="e.g. +91 9876543210"
+                  placeholder="e.g. +91 98765 43210"
                   {...register("organizerContact.whatsapp", {
                     required: "Official WhatsApp number is required",
                     pattern: {
@@ -89,9 +79,9 @@ export default function OrganizerContact() {
               <p className="text-[10px] text-slate-400">
                 Use the official event helpdesk/contact number, not a personal WhatsApp number.
               </p>
-              {errors?.organizerContact?.whatsapp && (
+              {whatsappError && (
                 <p className="text-[10px] text-rose-500">
-                  {errors.organizerContact.whatsapp.message}
+                  {whatsappError.message}
                 </p>
               )}
             </div>
@@ -141,8 +131,7 @@ export default function OrganizerContact() {
               </p>
             </div> */}
           </div>
-        )}
-      </div>
+        </div>
     </FormSection>
   );
 }

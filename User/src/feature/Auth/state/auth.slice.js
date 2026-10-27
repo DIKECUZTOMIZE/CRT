@@ -7,8 +7,7 @@ import {
     registerOrganizer,
     registerUser,
 } from "../api/auth.api.js";
-import { connectSocketIfAuthenticated, socket } from "../../../app/config/socket.js";
-import { hasPortalAuthCookie } from "./sessionGuard.js";
+import { connectSocketIfAuthenticated, disconnectSocket, socket } from "../../../app/config/socket.js";
 
 const hasPortalRole = (user, expectedRole) => {
     if (!user || typeof user !== "object") {
@@ -178,7 +177,7 @@ const authSlice = createSlice({
                 state.error = null;
 
                 if (action.payload) {
-                    connectSocketIfAuthenticated();
+                    connectSocketIfAuthenticated(action.payload._id || action.payload.id);
                 } else if (socket.connected) {
                     socket.disconnect();
                 }
@@ -197,7 +196,7 @@ const authSlice = createSlice({
                 state.user = action.payload;
 
                 if (action.payload) {
-                    connectSocketIfAuthenticated();
+                    connectSocketIfAuthenticated(action.payload._id || action.payload.id);
                 } else if (socket.connected) {
                     socket.disconnect();
                 }
@@ -212,7 +211,7 @@ const authSlice = createSlice({
                 state.user = action.payload;
 
                 if (action.payload) {
-                    connectSocketIfAuthenticated();
+                    connectSocketIfAuthenticated(action.payload._id || action.payload.id);
                 } else if (socket.connected) {
                     socket.disconnect();
                 }
@@ -221,15 +220,14 @@ const authSlice = createSlice({
                 state.status = "unauthenticated";
                 state.user = null;
                 clearAllPortalAuthState();
-                if (socket.connected) {
-                    socket.disconnect();
-                }
+                disconnectSocket();
                 state.error = null;
             })
             .addCase(logoutUser.rejected, (state) => {
                 state.status = "unauthenticated";
                 state.user = null;
                 clearAllPortalAuthState();
+                disconnectSocket();
             });
     },
 });

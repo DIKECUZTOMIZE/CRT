@@ -13,7 +13,7 @@ import {
 
 import DetailAccordion from "../../../../../shared/components/ui/DetailAccordion";
 
-export const CompetitionDetails = ({ details }) => {
+export const CompetitionDetails = ({ details, open = false, onToggle }) => {
   if (!details || typeof details !== "object") return null;
 
   const formatValue = (val) => {
@@ -184,12 +184,14 @@ export const CompetitionDetails = ({ details }) => {
       badge={`${normalizedItems.length} Specs`}
       icon={Sparkles}
       initialOpen={false}
+      open={open}
+      onToggle={onToggle}
       viewLabel="View details"
       hideLabel="Hide details"
       iconClassName="panel-icon--emerald"
       bodyClassName="panel-body--stacked"
     >
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {normalizedItems.map((item, index) => {
           const Icon = item.icon;
 

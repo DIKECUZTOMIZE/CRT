@@ -1,7 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useSelector } from "react-redux";
+import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, CheckCircle2, Clock3 } from "lucide-react";
 
-import { getOrganizerDashboardEvents } from "../api/dashboard.api.js";
+import { getOrganizerEvents } from "../../Event/api/event.api.js";
+
+const EMPTY_EVENTS = [];
 
 const formatDate = (value) => {
   if (!value) return "TBA";
@@ -77,28 +81,18 @@ const normalizeEvents = (items = []) =>
   }));
 
 export const useDashboardEvents = () => {
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { user } = useSelector((state) => state.auth || {});
 
-  const fetchEvents = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError("");
+  const query = useQuery({
+    queryKey: ["organizer-events", user?.id || "anon"],
+    queryFn: getOrganizerEvents,
+    select: normalizeEvents,
+  });
 
-      const list = await getOrganizerDashboardEvents();
-      setEvents(normalizeEvents(list));
-    } catch (err) {
-      setEvents([]);
-      setError(err?.message || "Unable to load dashboard events.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
+  const events = query.isError ? EMPTY_EVENTS : query.data ?? EMPTY_EVENTS;
+  const loading = query.isFetching;
+  const error = query.isError ? query.error?.message || "Unable to load dashboard events." : "";
+  const fetchEvents = query.refetch;
 
   const stats = useMemo(() => {
     const total = events.length;

@@ -38,9 +38,9 @@ const normalizeLocationValue = (event = {}) => {
 
 export default function RegisteredEventsCard({ events }) {
   return (
-    <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+    <div className="space-y-4 rounded-2xl border border-emerald-100 bg-white p-5">
       <div className="flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-emerald-400">
+        <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-emerald-600">
           <Ticket className="h-4 w-4" /> My Upcoming Tickets ({events.length})
         </h3>
       </div>
@@ -49,16 +49,16 @@ export default function RegisteredEventsCard({ events }) {
         {events.map((evt) => (
           <div
             key={evt.id}
-            className="flex flex-col justify-between gap-3 rounded-xl border border-slate-800/80 bg-slate-950/50 p-3.5 transition-all hover:border-slate-700 sm:flex-row sm:items-center"
+            className="flex flex-col justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3.5 transition-all hover:border-slate-700 sm:flex-row sm:items-center"
           >
             <div className="space-y-1">
-              <span className="inline-block rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/20">
+              <span className="inline-block rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 border border-emerald-500/20">
                 {evt.ticketType}
               </span>
-              <h4 className="text-sm font-bold text-slate-100">{evt.title}</h4>
-              <div className="flex flex-wrap gap-3 text-[11px] text-slate-400">
+              <h4 className="text-sm font-bold text-slate-900">{evt.title}</h4>
+              <div className="flex flex-wrap gap-3 text-[11px] text-slate-600">
                 <span className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3 text-slate-500" /> {evt.date} • {evt.time}
+                  <Calendar className="h-3 w-3 text-slate-500" /> {evt.date} â€¢ {evt.time}
                 </span>
                 <span className="flex items-center gap-1">
                   <MapPin className="h-3 w-3 text-slate-500" /> {normalizeLocationValue(evt)}
@@ -66,7 +66,7 @@ export default function RegisteredEventsCard({ events }) {
               </div>
             </div>
 
-            <button className="flex items-center justify-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white">
+            <button className="flex items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-emerald-100 hover:text-slate-900">
               <span>View Ticket</span>
               <ArrowRight className="h-3.5 w-3.5" />
             </button>

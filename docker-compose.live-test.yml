@@ -1,0 +1,87 @@
+name: crt-live-test
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - live_test_mongo_data:/data/db
+    networks:
+      - live_test
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --maxmemory
+      - 128mb
+      - --maxmemory-policy
+      - noeviction
+    networks:
+      - live_test
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend-restored
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ./backend-restored/.env.live-test
+    environment:
+      NODE_ENV: development
+      PORT: "3000"
+      MONGO_URI: mongodb://mongo:27017/CRT_LIVE_TEST
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGIN: http://organizer.localhost:5176
+      FRONTEND_URL: http://organizer.localhost:5176
+      ADMIN_FRONTEND_URL: http://organizer.localhost:5176
+      ORGANIZER_FRONTEND_URL: http://organizer.localhost:5176
+      SEED_DEFAULT_USERS: "false"
+    ports:
+      - "127.0.0.1:3001:3000"
+    networks:
+      - live_test
+
+  organizer:
+    build:
+      context: ./organizer-restored
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://localhost:3001
+      VITE_DEV_PORT: "5176"
+      VITE_HMR_HOST: organizer.localhost
+      VITE_HMR_PORT: "5176"
+      CHOKIDAR_USEPOLLING: "true"
+    command: npm run dev -- --host 0.0.0.0 --port 5176
+    ports:
+      - "127.0.0.1:5176:5176"
+    networks:
+      - live_test
+
+networks:
+  live_test:
+    name: crt-live-test-network
+    internal: true
+
+volumes:
+  live_test_mongo_data:
+    name: crt-live-test-mongo-data

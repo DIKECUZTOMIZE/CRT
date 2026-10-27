@@ -1,3 +1,4 @@
+﻿import { isDeepStrictEqual } from "node:util";
 import EventModel, { deriveEventStatus, shouldAutoCompleteByEndTime } from "../../model/event.model.js";
 import UserModel from "../../model/user.model.js";
 import { getRedisClient } from "../../config/redis.js";
@@ -6,6 +7,7 @@ import {
     deleteEventByIdForOrganizer,
     getEventByIdForOrganizer,
     getEventsByOrganizer,
+    buildExpectedEventStateFilter,
     updateEventByIdForOrganizer,
 } from "../../dao/event.dao.js";
 import { createNotificationService } from "../notification/notification.service.js";
@@ -171,6 +173,39 @@ const notifyUsersForEventState = async ({ event, targetStates, notificationType 
     return notifications;
 };
 
+const parsePrizeAmount = (value) => {
+    if (value === undefined || value === null) return undefined;
+    if (typeof value === "string" && value.trim() === "") return undefined;
+
+    const amount = Number(value);
+    return Number.isFinite(amount) && amount >= 0 ? amount : undefined;
+};
+
+const normalizePrizeRows = (prizes = []) =>
+    (Array.isArray(prizes) ? prizes : [])
+        .filter((prize) => {
+            if (!prize || typeof prize !== "object") return false;
+
+            const amount = parsePrizeAmount(prize.amount);
+            const hasReward =
+                typeof prize.reward === "string" && prize.reward.trim().length > 0;
+
+            return amount !== undefined || hasReward;
+        })
+        .map((prize) => {
+            const { amount: rawAmount, ...prizeFields } = prize;
+            const amount = parsePrizeAmount(rawAmount);
+
+            return {
+                ...prizeFields,
+                category: prize.category || prize.customTitle || "General",
+                customTitle: prize.customTitle || prize.title || prize.name || "",
+                position: prize.position || "General",
+                ...(amount !== undefined ? { amount } : {}),
+                reward: prize.reward || "",
+            };
+        });
+
 export const createEventService = async (organizerId, payload) => {
     const participationConfig = payload.participation || {};
     const {
@@ -200,14 +235,7 @@ export const createEventService = async (organizerId, payload) => {
         price: Number(entry.price || 0),
     }));
 
-    const normalizedPrizes = (eventData.prizes || []).map((prize) => ({
-        ...prize,
-        category: prize.category || prize.customTitle || "General",
-        customTitle: prize.customTitle || prize.title || prize.name || "",
-        position: prize.position || "General",
-        amount: Number(prize.amount || 0),
-        reward: prize.reward || "",
-    }));
+    const normalizedPrizes = normalizePrizeRows(eventData.prizes);
 
     const normalizedRules = (eventRules || []).map((rule) => ({
         type: rule.type || "General",
@@ -220,6 +248,7 @@ export const createEventService = async (organizerId, payload) => {
     })).filter((rule) => rule.text && rule.text.trim());
 
     const normalizedSteps = (participationSteps || []).map((step) => ({
+        ...(step.title !== undefined ? { title: step.title } : {}),
         text: step.text || "",
     })).filter((step) => step.text && step.text.trim());
 
@@ -389,6 +418,7 @@ export const getPublicEventsService = async (filters = {}, pagination = {}) => {
         "organizerContact.name": 1,
         "participation.enabled": 1,
         "participation.mode": 1,
+        "entries.price": 1,
         totalPrizePool: 1,
     };
 
@@ -420,7 +450,7 @@ export const getPublicEventsService = async (filters = {}, pagination = {}) => {
 
         const requestPromise = (async () => {
             const match = {
-                status: { $in: ["upcoming", "live"] },
+                status: { $in: ["upcoming", "live", "cancelled", "postponed"] },
             };
 
             const total = await EventModel.countDocuments(match);
@@ -484,7 +514,7 @@ export const getPublicEventsService = async (filters = {}, pagination = {}) => {
 
     const requestPromise = (async () => {
         const match = {
-            status: { $in: ["upcoming", "live"] },
+            status: { $in: ["upcoming", "live", "cancelled", "postponed"] },
         };
 
         let result;
@@ -944,6 +974,16 @@ const isFinalCompletionConfirmed = (event) => {
         && event.results.length > 0;
 };
 
+const isFinalCancellationConfirmed = (event) =>
+    String(event?.status || "").trim().toLowerCase() === "cancelled"
+    && Boolean(event?.completionConfirmedAt);
+
+const createStatusUpdateConflictError = () => {
+    const error = new Error("Event status changed during this update. Reload the event and try again.");
+    error.statusCode = 409;
+    return error;
+};
+
 const normalizeResultEntries = (results = []) => {
     if (!Array.isArray(results)) {
         return [];
@@ -982,6 +1022,11 @@ const normalizeResultEntries = (results = []) => {
 
 export const updateEventService = async (organizerId, eventId, payload, userRole = "ORGANIZER") => {
     const normalizedPayload = { ...payload };
+    let expectedOrganizerState = null;
+
+    if (Object.prototype.hasOwnProperty.call(normalizedPayload, "prizes")) {
+        normalizedPayload.prizes = normalizePrizeRows(normalizedPayload.prizes);
+    }
 
     if (normalizedPayload.status) {
         normalizedPayload.status = normalizeEventStatus(normalizedPayload.status);
@@ -1000,18 +1045,28 @@ export const updateEventService = async (organizerId, eventId, payload, userRole
 
         const eventIsCompleted = String(existingEvent.status || "").trim().toLowerCase() === "completed";
         const eventIsFinalCompletion = isFinalCompletionConfirmed(existingEvent);
+        const eventIsFinalCancellation = isFinalCancellationConfirmed(existingEvent);
         const requestedStatus = normalizedPayload.status ? normalizeEventStatus(normalizedPayload.status) : null;
         const allowedCompletion = requestedStatus === "completed" && isOnlyCompletionPayload(normalizedPayload);
         const isResultUpdate = Object.prototype.hasOwnProperty.call(normalizedPayload, "results");
         const isCompletionConfirmation = requestedStatus === "completed" && Object.prototype.hasOwnProperty.call(normalizedPayload, "completionConfirmedAt");
-        const hasExistingResults = Array.isArray(existingEvent.results) && existingEvent.results.length > 0;
 
         if (requestedStatus === "completed") {
             throw new Error("Organizer manual completion is forbidden. Only admins can finalize an event.");
         }
 
-        if (isResultUpdate && !(eventIsCompleted || eventIsFinalCompletion || hasExistingResults || isCompletionConfirmation)) {
-            throw new Error("Results can only be saved after the event is finally completed.");
+        if (isResultUpdate && !eventIsCompleted) {
+            throw new Error("Results can only be saved after the event is completed.");
+        }
+
+        const isResultsOnlyPayload = Object.keys(normalizedPayload).every((key) => key === "results");
+
+        if (eventIsFinalCancellation && !isResultsOnlyPayload) {
+            throw new Error("This event is finally cancelled and cannot be edited or changed by the organizer.");
+        }
+
+        if (isResultUpdate && !isResultsOnlyPayload) {
+            throw new Error("Results must be saved on their own and cannot be combined with other event changes.");
         }
 
         if ((eventIsCompleted || eventIsFinalCompletion) && !isResultUpdate && !isCompletionConfirmation && !allowedCompletion) {
@@ -1023,16 +1078,65 @@ export const updateEventService = async (organizerId, eventId, payload, userRole
             normalizedPayload.status = "completed";
             normalizedPayload.completionConfirmedAt = new Date().toISOString();
         }
+
+        if (
+            Object.prototype.hasOwnProperty.call(normalizedPayload, "status")
+            || Object.prototype.hasOwnProperty.call(normalizedPayload, "completionConfirmedAt")
+        ) {
+            expectedOrganizerState = existingEvent;
+        }
     }
 
     if (userRole === "ADMIN") {
+        const isResultUpdate = Object.prototype.hasOwnProperty.call(normalizedPayload, "results");
+        const requestedStatus = normalizedPayload.status ? normalizeEventStatus(normalizedPayload.status) : null;
+        const hasCompletionMarkerUpdate = Object.prototype.hasOwnProperty.call(normalizedPayload, "completionConfirmedAt");
+        const needsStateGuard = isResultUpdate || Boolean(requestedStatus) || hasCompletionMarkerUpdate;
+        let existingEvent = null;
+        if (needsStateGuard) {
+            existingEvent = await EventModel.findOne({ _id: eventId }).lean();
+            if (!existingEvent) {
+                return null;
+            }
+        }
+
+        const eventIsFinalCancellation = isFinalCancellationConfirmed(existingEvent);
+        const changesCompletionMarker = hasCompletionMarkerUpdate && (
+            normalizedPayload.completionConfirmedAt == null
+            || new Date(normalizedPayload.completionConfirmedAt).getTime()
+                !== new Date(existingEvent.completionConfirmedAt).getTime()
+        );
+
+        if (isResultUpdate && !eventIsFinalCancellation) {
+            throw new Error("Results can only be saved after the event is finally cancelled.");
+        }
+
+        // Admins may change a finally cancelled event's status; its final-cancellation marker stays protected.
+        if (eventIsFinalCancellation && changesCompletionMarker) {
+            throw new Error("A finally cancelled event cannot have its final-cancellation marker changed.");
+        }
+
+        const updateFilter = { _id: eventId };
+        if (isResultUpdate) {
+            updateFilter.status = "cancelled";
+            updateFilter.completionConfirmedAt = { $ne: null };
+        }
+
+        const isStatusUpdate = Boolean(requestedStatus) || hasCompletionMarkerUpdate;
+        if (isStatusUpdate) {
+            Object.assign(updateFilter, buildExpectedEventStateFilter(existingEvent));
+        }
+
         const updatedEvent = await EventModel.findOneAndUpdate(
-            { _id: eventId },
+            updateFilter,
             { $set: normalizedPayload },
             { new: true, runValidators: true }
         ).lean();
 
         if (!updatedEvent) {
+            if (isStatusUpdate && await EventModel.findOne({ _id: eventId }).lean()) {
+                throw createStatusUpdateConflictError();
+            }
             return null;
         }
 
@@ -1042,9 +1146,18 @@ export const updateEventService = async (organizerId, eventId, payload, userRole
     const previousEvent = await EventModel.findOne({ _id: eventId, organizerId }).lean();
     const previousState = previousEvent ? normalizeStateValue(previousEvent.state) : "";
 
-    const updatedEvent = await updateEventByIdForOrganizer(organizerId, eventId, normalizedPayload);
+    const isStatusUpdate = expectedOrganizerState !== null;
+    const updatedEvent = await updateEventByIdForOrganizer(
+        organizerId,
+        eventId,
+        normalizedPayload,
+        expectedOrganizerState,
+    );
 
     if (!updatedEvent) {
+        if (isStatusUpdate && await EventModel.findOne({ _id: eventId, organizerId }).lean()) {
+            throw createStatusUpdateConflictError();
+        }
         return null;
     }
 
@@ -1052,7 +1165,14 @@ export const updateEventService = async (organizerId, eventId, payload, userRole
         const newState = normalizeStateValue(updatedEvent.state);
         const statesToNotify = [...new Set([previousState, newState].filter(Boolean))];
 
-        if (statesToNotify.length === 0) {
+        const withoutAutoFields = ({ updatedAt, __v, viewsCount, ratings, participationSteps, ...rest } = {}) => ({
+            ...JSON.parse(JSON.stringify(rest)),
+            participationSteps: (participationSteps || []).map(({ title, text }) => ({ title, text })),
+        });
+        const hasActualChange = !previousEvent
+            || !isDeepStrictEqual(withoutAutoFields(previousEvent), withoutAutoFields(updatedEvent));
+
+        if (!hasActualChange || statesToNotify.length === 0) {
             await invalidatePublicEventsCache();
             return updatedEvent;
         }
@@ -1136,6 +1256,12 @@ export const completeEventService = async (organizerId, eventId, userRole = "ORG
         return null;
     }
 
+    if (userRole !== "ADMIN" && isFinalCancellationConfirmed(existingEvent)) {
+        const error = new Error("This event is finally cancelled and cannot be completed by the organizer.");
+        error.statusCode = 409;
+        throw error;
+    }
+
     const currentStatus = String(existingEvent.status || "").trim().toLowerCase();
     if (currentStatus === "completed") {
         const error = new Error("This event is already completed. Use Update to confirm the final completion.");
@@ -1169,6 +1295,13 @@ export const deleteEventService = async (organizerId, eventId, userRole = "ORGAN
         }
 
         return deletedEvent;
+    }
+
+    const ownedEvent = await EventModel.findOne({ _id: eventId, organizerId }).lean();
+    if (isFinalCancellationConfirmed(ownedEvent)) {
+        const error = new Error("This event is finally cancelled and cannot be deleted by the organizer.");
+        error.statusCode = 409;
+        throw error;
     }
 
     const deletedEvent = await deleteEventByIdForOrganizer(organizerId, eventId);

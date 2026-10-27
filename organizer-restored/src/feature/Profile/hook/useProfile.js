@@ -1,7 +1,7 @@
 import { useSelector } from "react-redux";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { useOrganizerApp } from "../../../app/context/OrganizerAppContext.jsx";
+import { useOrganizerApp } from "../../../app/context/organizerAppContext.js";
 import { getOrganizerProfile, updateOrganizerProfile } from "../api/index.js";
 import { initialProfileData } from "../utils/initialProfileData.jsx";
 

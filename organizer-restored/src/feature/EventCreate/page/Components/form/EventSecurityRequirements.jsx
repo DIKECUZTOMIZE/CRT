@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useFormContext, useFieldArray } from "react-hook-form";
 import {
   ShieldCheck,
   Plus,
   Trash2,
-  ChevronDown,
-  ChevronUp,
   AlertTriangle,
   Tags,
 } from "lucide-react";
@@ -23,59 +21,11 @@ export default function EventSecurityRequirements() {
     name: "securityRequirements",
   });
 
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const watchedRequirements = watch("securityRequirements");
   const isEditing = watch("isEditing");
-  const hasSavedSecurityRequirements = Array.isArray(watchedRequirements) && watchedRequirements.length > 0;
 
-  useEffect(() => {
-    if (!securityFields || securityFields.length > 0 || isEditing) return;
-
-    const defaultRequirements = [
-      {
-        type: "Noise Control",
-        text: "Music and sound levels must remain within the legal venue limits.",
-      },
-      {
-        type: "Police / Authority",
-        text: "Required permits and coordination with local authority must be maintained.",
-      },
-      {
-        type: "Safety Compliance",
-        text: "Emergency exits, first aid access, and basic safety protocols must be available.",
-      },
-      {
-        type: "Crowd Management",
-        text: "Entry, exit, and queue management must be controlled to maintain safe crowd flow.",
-      },
-    ];
-
-    defaultRequirements.forEach((requirement) => {
-      appendRequirement(requirement);
-    });
-  }, [appendRequirement, securityFields, isEditing]);
-
-  const defaultRequirements = [
-    {
-      type: "Noise Control",
-      text: "Music and sound levels must remain within the legal venue limits.",
-    },
-    {
-      type: "Police / Authority",
-      text: "Required permits and coordination with local authority must be maintained.",
-    },
-    {
-      type: "Safety Compliance",
-      text: "Emergency exits, first aid access, and basic safety protocols must be available.",
-    },
-    {
-      type: "Crowd Management",
-      text: "Entry, exit, and queue management must be controlled to maintain safe crowd flow.",
-    },
-  ];
-
-  const displayRequirements = securityFields.length > 0 ? securityFields : isEditing ? [] : defaultRequirements;
-  const activeRequirementsCount = displayRequirements.length;
+  const activeRequirementsCount = securityFields.length;
 
   const securityCategories = [
     "Noise Control",
@@ -92,57 +42,46 @@ export default function EventSecurityRequirements() {
       icon={ShieldCheck}
       title="Security & Compliance"
       description="Add event safety, authority, and venue compliance requirements."
+      onToggle={() => setIsExpanded(!isExpanded)}
+      isExpanded={isExpanded}
+      toggleLabel={isExpanded ? "Collapse security and compliance" : "Expand security and compliance"}
     >
-      <div className="space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-          <button
-            type="button"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex w-full items-center justify-between rounded-lg py-1 text-left text-xs font-semibold text-slate-700 transition-colors hover:text-emerald-700 focus:outline-none"
-          >
-            <span className="truncate pr-2">
-              {`${activeRequirementsCount} security requirement${activeRequirementsCount > 1 ? "s" : ""} configured`}
-            </span>
-            {isExpanded ? (
-              <ChevronUp className="h-4 w-4 shrink-0 text-slate-500" />
-            ) : (
-              <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" />
-            )}
-          </button>
-        </div>
-
-        {isExpanded && (
-          <div className="space-y-4 transition-all">
-            <div className="flex items-center justify-between pt-1">
-              <div>
-                <span className="text-xs font-semibold text-slate-700">
-                  Security Checklist
-                </span>
-                <p className="text-[10px] text-slate-400">
-                  Capture venue, legal, and crowd safety requirements before the event.
-                </p>
+      {isExpanded && (
+        <div className="space-y-4 transition-all">
+          <div className="flex items-center justify-between pt-1">
+            <div>
+              <span className="text-xs font-semibold text-slate-700">
+                Security Checklist
+              </span>
+              <div className="mt-1 flex items-center gap-2 text-[10px] text-slate-400">
+                <span>{activeRequirementsCount} Security Requirement{activeRequirementsCount === 1 ? "" : "s"}</span>
               </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  appendRequirement({
-                    type: "Other",
-                    text: "",
-                  })
-                }
-                className="flex shrink-0 items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-all hover:bg-emerald-100 active:scale-95"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Add Requirement</span>
-              </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                appendRequirement({
+                  type: "Other",
+                  text: "",
+                })
+              }
+              className="flex shrink-0 items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-all hover:bg-emerald-100 active:scale-95"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Add Requirement</span>
+            </button>
+          </div>
+
+          <p className="text-[10px] text-slate-400">
+            Capture venue, legal, and crowd safety requirements before the event.
+          </p>
 
             {!isEditing && securityFields.length === 0 && (
               <div className="mb-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-4 py-4 text-center">
                 <AlertTriangle className="mx-auto mb-1.5 h-5 w-5 text-amber-500" />
                 <p className="text-xs font-medium text-slate-600">
-                  Showing default security requirements
+                  No security requirements added yet
                 </p>
                 <p className="mt-0.5 text-[10px] text-slate-400">
                   Click “Add Requirement” to customize safety guidelines for your event.
@@ -151,7 +90,7 @@ export default function EventSecurityRequirements() {
             )}
 
             <div className="flex gap-4 overflow-x-auto pb-4 pt-1 snap-x snap-mandatory scrollbar-thin scrollbar-track-slate-100 scrollbar-thumb-emerald-200 md:grid md:grid-cols-2 md:overflow-visible">
-              {displayRequirements.map((item, index) => {
+              {securityFields.map((item, index) => {
                 const itemType = watchedRequirements?.[index]?.type ?? item.type ?? "Other";
                 const isCustomCategory =
                   itemType === "Custom" ||
@@ -244,7 +183,6 @@ export default function EventSecurityRequirements() {
             </div>
           </div>
         )}
-      </div>
     </FormSection>
   );
 }

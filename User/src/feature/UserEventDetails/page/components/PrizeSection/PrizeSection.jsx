@@ -7,11 +7,11 @@ import {
   Users,
   User,
   Baby,
-  Sparkles,
   ShieldAlert,
 } from "lucide-react";
 import { formatCurrency } from "../../../utils/eventDetailsUtils";
 import { useEffect, useState } from "react";
+import DetailAccordion from "../../../../../shared/components/ui/DetailAccordion";
 
 const getCategoryRank = (categoryName = "") => {
   const name = String(categoryName).toLowerCase();
@@ -59,38 +59,23 @@ const getCategoryGroup = (categoryName = "") => {
   return "other";
 };
 
-const formatOrdinalLabel = (value) => {
-  const n = Number(value) || 1;
-  const suffixes = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  const suffix = suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0];
-  return `${n}${suffix}`;
-};
-
-const getPrizeTitle = (prize = {}, fallback = "Prize") => {
+const getPrizeTitle = (prize = {}) => {
   const candidate = [
     prize?.customTitle,
     prize?.title,
     prize?.name,
     prize?.label,
-    prize?.category,
-    fallback,
   ].find((value) => String(value || "").trim().length > 0);
 
-  if (!candidate) return fallback;
-
-  const text = String(candidate).trim();
-  return text === "Prize" ? fallback : text;
+  return candidate ? String(candidate).trim() : "";
 };
 
-const getPrizeRankLabel = (prize = {}, index = 0) => {
+const getPrizeRankLabel = (prize = {}) => {
   const rawValue = [prize?.rank, prize?.position, prize?.level].find(
     (value) => String(value || "").trim().length > 0,
   );
 
-  if (!rawValue) {
-    return formatOrdinalLabel(index + 1);
-  }
+  if (!rawValue) return "";
 
   const text = String(rawValue).trim();
   const normalized = text
@@ -133,15 +118,9 @@ const getDynamicCategoryTitle = (category = {}) => {
     return "Team Prize";
   }
 
-  if (customName) {
-    return customName;
-  }
+  if (customName) return customName;
 
-  if (directTitle) {
-    return directTitle;
-  }
-
-  return "Custom Prize";
+  return directTitle;
 };
 
 const mergePrizeCategories = (categories = []) => {
@@ -153,13 +132,7 @@ const mergePrizeCategories = (categories = []) => {
       ...category,
       id: category.id || `category-${index}`,
       category: dynamicTitle,
-      description:
-        category.description ||
-        (groupName === "solo"
-          ? "Solo category prizes"
-          : groupName === "team"
-            ? "Team category prizes"
-            : dynamicTitle),
+      description: category.description || "",
       isSoloOnly: groupName === "solo",
     };
   });
@@ -171,7 +144,7 @@ const mergePrizeCategories = (categories = []) => {
   });
 };
 
-export const PrizeSection = ({ prizes = [] }) => {
+export const PrizeSection = ({ prizes = [], open, onToggle }) => {
   if (!Array.isArray(prizes) || prizes.length === 0) {
     return null;
   }
@@ -314,29 +287,25 @@ export const PrizeSection = ({ prizes = [] }) => {
   }, 0);
 
   return (
-    <section className="relative overflow-hidden space-y-3 rounded-xl border border-emerald-100 bg-white p-3 shadow-[0_10px_26px_rgba(15,118,110,0.05)] backdrop-blur-xl sm:p-4">
-      {/* SECTION HEADER */}
-      <div className="flex items-center justify-between border-b border-emerald-100 pb-2">
-        <div className="flex items-center gap-1.5">
-          <Trophy className="h-3.5 w-3.5 shrink-0 text-amber-600" />
-          <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 sm:text-xs">
-            Prizes & Rewards
-          </h3>
-        </div>
-
-        {totalPrizeAmount > 0 && (
-          <div className="flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5">
-            <Sparkles className="h-2.5 w-2.5 text-amber-600" />
-            <span className="text-[9px] font-extrabold uppercase tracking-wide text-amber-700 sm:text-[10px]">
-              Pool:{" "}
-              {formatCurrency(
-                totalPrizeAmount,
-                validCategories[0]?.prizes[0]?.currency || "INR",
-              )}
-            </span>
-          </div>
-        )}
-      </div>
+    <DetailAccordion
+      title="Prizes & Rewards"
+      badge={
+        totalPrizeAmount > 0
+          ? `Pool: ${formatCurrency(
+              totalPrizeAmount,
+              validCategories[0]?.prizes[0]?.currency || "INR",
+            )}`
+          : undefined
+      }
+      icon={Trophy}
+      open={open}
+      onToggle={onToggle}
+      viewLabel="View prizes"
+      hideLabel="Hide details"
+      iconClassName="panel-icon--emerald"
+      badgeClassName="panel-badge--emerald"
+      bodyClassName="panel-body--stacked"
+    >
 
       {/* DYNAMIC CATEGORY SLIDER / TABS */}
       {sortedCategories.length > 1 && (
@@ -397,9 +366,11 @@ export const PrizeSection = ({ prizes = [] }) => {
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-900 sm:text-xs truncate">
-                      {getDynamicCategoryTitle(category)}
-                    </h4>
+                    {getDynamicCategoryTitle(category) && (
+                      <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-900 sm:text-xs truncate">
+                        {getDynamicCategoryTitle(category)}
+                      </h4>
+                    )}
                     {category.description && (
                       <p className="truncate text-[9px] font-medium text-slate-500">
                         {category.description}
@@ -434,7 +405,7 @@ export const PrizeSection = ({ prizes = [] }) => {
                     rankLower.includes("3rd") ||
                     prizeIndex < 3;
 
-                  const prizeTitle = getPrizeTitle(prize, `Prize ${prizeIndex + 1}`);
+                  const prizeTitle = getPrizeTitle(prize);
 
                   // Detect 18+ restriction dynamically from prize data
                   const is18Plus =
@@ -458,11 +429,13 @@ export const PrizeSection = ({ prizes = [] }) => {
                       {/* CARD TOP ROW */}
                       <div className="flex items-center justify-between gap-1.5">
                         <div className="flex items-center gap-1 flex-wrap">
-                          <span
-                            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider ${style.badgeStyle}`}
-                          >
-                            {rankText}
-                          </span>
+                          {rankText && (
+                            <span
+                              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider ${style.badgeStyle}`}
+                            >
+                              {rankText}
+                            </span>
+                          )}
 
                           {/* DYNAMIC 18+ BADGE */}
                           {is18Plus && (
@@ -492,7 +465,7 @@ export const PrizeSection = ({ prizes = [] }) => {
                           {amountFormatted}
                         </p>
 
-                        {prizeTitle && prizeTitle !== "Prize" && (
+                        {prizeTitle && (
                           <p className="text-[9px] font-medium leading-tight text-slate-600">
                             {prizeTitle}
                           </p>
@@ -534,7 +507,7 @@ export const PrizeSection = ({ prizes = [] }) => {
           );
         })}
       </div>
-    </section>
+    </DetailAccordion>
   );
 };
 

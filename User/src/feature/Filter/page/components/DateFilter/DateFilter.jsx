@@ -15,7 +15,7 @@ export const DateFilter = ({
 
   return (
     <div className={`flex flex-col gap-2.5 ${className}`}>
-      <label className="text-xs font-semibold text-slate-300">Timeline</label>
+      <label className="text-xs font-semibold text-slate-700">Timeline</label>
       <div className="grid grid-cols-2 gap-2">
         {options.map((opt) => {
           const isSelected = selectedRange === opt.id;
@@ -26,8 +26,8 @@ export const DateFilter = ({
               onClick={() => onChange(opt.id)}
               className={`min-h-[42px] rounded-xl border px-3 py-2 text-left text-[12px] font-medium transition-all touch-manipulation active:scale-[0.99] ${
                 isSelected
-                  ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300 shadow-sm shadow-emerald-950/20"
-                  : "border-slate-800 bg-slate-950/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm shadow-emerald-900/5"
+                  : "border-[#CDE9DB] bg-white text-slate-600 hover:border-emerald-200 hover:bg-[#F7FBF9] hover:text-slate-900"
               }`}
             >
               {opt.label}

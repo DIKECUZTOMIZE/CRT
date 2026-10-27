@@ -51,7 +51,13 @@ const OrganizerDashboard = () => {
               </div>
             </div>
 
-            <div className="text-3xl font-black text-white">{stat.value}</div>
+            <div className="text-3xl font-black text-white">
+              {loading ? (
+                <span aria-hidden="true" className="inline-block h-8 w-10 animate-pulse rounded bg-slate-700" />
+              ) : (
+                stat.value
+              )}
+            </div>
             <div className="mt-1 text-[11px] text-slate-500">{stat.description}</div>
           </div>
         ))}
@@ -79,12 +85,24 @@ const OrganizerDashboard = () => {
           <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 text-sm text-rose-300">
             {error}
           </div>
+        ) : recentEvents.length === 0 ? (
+          <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 text-sm text-slate-400">
+            No recent events to show.
+          </div>
         ) : (
           <div className="space-y-3">
             {recentEvents.map((event) => (
               <div
                 key={event.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => navigate(`/organizer/events/${event.id}`)}
+                onKeyDown={(keyboardEvent) => {
+                  if (keyboardEvent.key === "Enter" || keyboardEvent.key === " ") {
+                    keyboardEvent.preventDefault();
+                    navigate(`/organizer/events/${event.id}`);
+                  }
+                }}
                 className="cursor-pointer rounded-xl border border-slate-800 bg-slate-900 p-4 transition hover:border-emerald-500/40"
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -105,7 +123,7 @@ const OrganizerDashboard = () => {
                       {event.status}
                     </span>
 
-                    <h3 className="mt-2 text-base font-bold text-white">{event.title}</h3>
+                    <h3 className="mt-2 break-all text-base font-bold text-white sm:break-normal">{event.title}</h3>
 
                     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400">
                       <span className="flex items-center gap-1">

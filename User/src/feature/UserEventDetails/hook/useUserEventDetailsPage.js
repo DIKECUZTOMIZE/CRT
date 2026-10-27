@@ -9,12 +9,17 @@ import { applySeoMeta } from "../../../app/seo/seoUtils.js";
 import { useOrganizerEventDetails } from "./useOrganizerEventDetails.jsx";
 
 export const EVENT_TABS = [
-  { id: "overview-section", label: "Overview" },
+  { id: "overview-section", label: "Event Overview" },
+  { id: "competition-overview-section", label: "Competition Overview" },
+  { id: "description-section", label: "Description" },
+  { id: "entry-section", label: "Entry" },
   { id: "prizes-section", label: "Prizes" },
   { id: "results-section", label: "Winner" },
   { id: "how-to-join-section", label: "How To Join" },
   { id: "rules-section", label: "Rules" },
-  { id: "organizer-section", label: "Organizer" },
+  { id: "security-section", label: "Security" },
+  { id: "organizer-team-section", label: "Organizer Team" },
+  { id: "contact-section", label: "Contact" },
 ];
 
 export const useUserEventDetailsPage = () => {

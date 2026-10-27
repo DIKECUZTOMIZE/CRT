@@ -68,28 +68,44 @@ const normalizeEventDetail = (event) => {
   };
 
   const groupedPrizeMap = new Map();
-  (Array.isArray(event.prizes) ? event.prizes : []).forEach((prize) => {
-    if (!prize || typeof prize !== "object") return;
+  (Array.isArray(event.prizes) ? event.prizes : [])
+    .filter((prize) => {
+      if (!prize || typeof prize !== "object") return false;
 
-    const categoryName = String(prize.category || "General").trim() || "General";
-    const currentGroup = groupedPrizeMap.get(categoryName) || {
-      category: categoryName,
-      description: prize.reward || "",
-      prizes: [],
-      isSoloOnly: /solo|individual|single/i.test(categoryName),
-    };
+      const hasPrizeDetails = [
+        prize.customTitle,
+        prize.title,
+        prize.name,
+        prize.position,
+        prize.reward,
+      ].some((value) => typeof value === "string" && value.trim().length > 0);
+      const amount =
+        prize.amount === "" || prize.amount === null || prize.amount === undefined
+          ? null
+          : Number(prize.amount);
 
-    currentGroup.prizes.push({
-      rank: prize.position || "Prize",
-      customTitle: prize.customTitle || prize.title || prize.name || "",
-      amount: Number(prize.amount || 0),
-      currency: "INR",
-      perks: prize.reward || "",
-      note: prize.reward || "",
+      return hasPrizeDetails || (amount !== null && Number.isFinite(amount) && amount >= 0);
+    })
+    .forEach((prize) => {
+      const categoryName = String(prize.category || "General").trim() || "General";
+      const currentGroup = groupedPrizeMap.get(categoryName) || {
+        category: categoryName,
+        description: prize.reward || "",
+        prizes: [],
+        isSoloOnly: /solo|individual|single/i.test(categoryName),
+      };
+
+      currentGroup.prizes.push({
+        rank: prize.position || "Prize",
+        customTitle: prize.customTitle || prize.title || prize.name || "",
+        amount: Number(prize.amount || 0),
+        currency: "INR",
+        perks: prize.reward || "",
+        note: prize.reward || "",
+      });
+
+      groupedPrizeMap.set(categoryName, currentGroup);
     });
-
-    groupedPrizeMap.set(categoryName, currentGroup);
-  });
 
   const prizes = groupedPrizeMap.size > 0
     ? Array.from(groupedPrizeMap.values())
@@ -148,6 +164,7 @@ const normalizeEventDetail = (event) => {
     statusReason: event.statusReason || "",
     category: event.category || "General",
     mode: event.eventMode || "Offline",
+    onlineLink: typeof event.onlineLink === "string" ? event.onlineLink.trim() : "",
     viewsCount: Number(event.viewsCount ?? event.viewCount ?? 0) || 0,
     avgRating: Number(event.avgRating ?? event.rating ?? 0) || 0,
     ratingsCount: Number(event.ratingsCount ?? event.reviewCount ?? event.ratingCount ?? 0) || 0,
@@ -171,7 +188,9 @@ const normalizeEventDetail = (event) => {
     meta: {
       status: normalizedStatus,
       statusReason: event.statusReason || "",
-      seatsAvailable: event.totalSeats || 0,
+      seatsAvailable: event.totalSeats ?? null,
+      seatAvailability: event.seatAvailability || "",
+      customSeatDetails: event.customSeatDetails || "",
       location: normalizeLocationValue(event),
       startDate: event.eventDate || event.eventStart || "",
       startTime: event.eventStartTime || event.eventTime || "",
@@ -184,7 +203,9 @@ const normalizeEventDetail = (event) => {
     overview: {
       status: normalizedStatus,
       statusReason: event.statusReason || "",
-      seatsAvailable: event.totalSeats || 0,
+      seatsAvailable: event.totalSeats ?? null,
+      seatAvailability: event.seatAvailability || "",
+      customSeatDetails: event.customSeatDetails || "",
       location: normalizeLocationValue(event),
       startDate: event.eventDate || event.eventStart || "",
       startTime: event.eventStartTime || event.eventTime || "",
@@ -215,13 +236,13 @@ const normalizeEventDetail = (event) => {
       mode: event.eventMode || "Offline",
     },
     prizes,
-    howToJoin: Array.isArray(event.participationSteps) && event.participationSteps.length > 0
-      ? event.participationSteps.map((step) => ({ text: step.text || step }))
-      : [
-          "Contact the organizer for event details and participation confirmation.",
-          "Confirm your eligibility and participation mode with the organizer.",
-          "Complete the registration process as instructed by the organizer.",
-        ],
+    results: Array.isArray(event.results) ? event.results : [],
+    howToJoin: Array.isArray(event.participationSteps)
+      ? event.participationSteps.map((step) => ({
+          ...(step && typeof step === "object" && step.title !== undefined ? { title: step.title } : {}),
+          text: step && typeof step === "object" ? step.text || "" : step,
+        }))
+      : [],
     terms: rulesSource.map((rule) => ({
       type: rule?.type || "Rule",
       text: rule?.text || rule?.rule || rule || "",
@@ -250,11 +271,12 @@ const normalizeEventDetail = (event) => {
 
 export const useOrganizerEventDetails = (eventId) => {
   const [event, setEvent] = useState(null);
+  const [rawEvent, setRawEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isBookmarked, setIsBookmarked] = useState(false);
 
-  const fetchDetails = useCallback(async () => {
+  const fetchDetails = useCallback(async (isActive = () => true) => {
     try {
       setLoading(true);
       setError(null);
@@ -264,23 +286,34 @@ export const useOrganizerEventDetails = (eventId) => {
       }
 
       const eventData = await getOrganizerEventDetails(eventId);
+      if (!isActive()) return;
+      setRawEvent(eventData);
       setEvent(normalizeEventDetail(eventData));
     } catch (err) {
+      if (!isActive()) return;
       setError(err?.message || "Failed to load event details.");
+      setRawEvent(null);
       setEvent(null);
     } finally {
-      setLoading(false);
+      if (isActive()) setLoading(false);
     }
   }, [eventId]);
 
   useEffect(() => {
+    let active = true;
+
     if (eventId) {
-      fetchDetails();
+      fetchDetails(() => active);
     } else {
       setLoading(false);
       setError("Event ID is missing.");
+      setRawEvent(null);
       setEvent(null);
     }
+
+    return () => {
+      active = false;
+    };
   }, [eventId, fetchDetails]);
 
   const toggleBookmark = () => {
@@ -289,6 +322,7 @@ export const useOrganizerEventDetails = (eventId) => {
 
   return {
     event,
+    rawEvent,
     loading,
     error,
     isBookmarked,

@@ -1,8 +1,10 @@
 import React from "react";
 import CompetitionSection from "./CompetitionSection";
 
-const HighBudget = ({ competitions = [], savedIds = [], onToggleSave }) => (
+const HighBudget = ({ competitions = [], savedIds = [], onToggleSave, sectionKey, quickFilters = [] }) => (
   <CompetitionSection
+    sectionKey={sectionKey}
+    quickFilters={quickFilters}
     title="High Budget"
     subtitle="Grand-scale hackathons featuring high prize amounts"
     competitions={competitions}

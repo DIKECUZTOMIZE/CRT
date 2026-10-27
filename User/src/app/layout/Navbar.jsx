@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, NavLink, useLocation, useNavigate } from "react-router";
+import { Link, NavLink } from "react-router";
 import { useSelector, useDispatch } from "react-redux";
 import {
   Bell,
@@ -9,6 +9,7 @@ import {
   ChevronRight,
   X,
   Check,
+  ChevronDown,
 } from "lucide-react";
 
 import { setUserLocation } from "../store/location.slice.js";
@@ -75,30 +76,8 @@ const parseEventLocation = (event = {}) => {
   };
 };
 
-const transformNotification = (notification = {}) => {
-  const normalized = notification?.data && typeof notification.data === "object" ? notification.data : notification;
-  const id = normalized._id || normalized.id || Date.now().toString();
-  const createdAt = normalized.createdAt || normalized.updatedAt || null;
-
-  return {
-    id: String(id),
-    title: normalizeText(normalized.title || "Notification"),
-    message: normalizeText(normalized.message || ""),
-    time: createdAt ? new Date(createdAt).toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    }) : "Just now",
-    read: Boolean(normalized.isRead ?? normalized.read),
-    link: normalized.link || "",
-  };
-};
-
 const Navbar = () => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const location = useLocation();
   const user = useSelector((state) => state.auth.user);
   const currentLocation = useSelector((state) => state.location);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
@@ -107,6 +86,11 @@ const Navbar = () => {
   const [selectedCity, setSelectedCity] = useState(currentLocation?.city || "All India");
   const [stateSearch, setStateSearch] = useState("");
   const [citySearch, setCitySearch] = useState("");
+  const [openDropdown, setOpenDropdown] = useState(null);
+
+  useEffect(() => {
+    if (!isLocationModalOpen) setOpenDropdown(null);
+  }, [isLocationModalOpen]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isLocationLoading, setIsLocationLoading] = useState(false);
 
@@ -138,12 +122,6 @@ const Navbar = () => {
     resolvedUser.user?.image ||
     ""
   )?.trim();
-  const avatarInitial = String(displayName || "User")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("") || "D";
   const hasAvatar = Boolean(avatarUrl && avatarUrl !== "");
 
 
@@ -236,7 +214,7 @@ const Navbar = () => {
     return () => {
       ignore = true;
     };
-  }, [currentLocation?.state, currentLocation?.city]);
+  }, [currentLocation?.state, currentLocation?.city, currentLocation?.isSelected]);
 
   const visibleStates = useMemo(
     () =>
@@ -417,47 +395,66 @@ const Navbar = () => {
       </header>
 
       {isLocationModalOpen && (
-        <div className="fixed inset-0 z-[60] overflow-hidden bg-slate-950/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] overflow-hidden bg-slate-900/40 backdrop-blur-sm md:bg-slate-950/80">
           <div className="flex h-full w-full items-end justify-center p-0 md:items-center md:p-4">
-            <div className="relative flex w-full max-h-[70vh] flex-col overflow-hidden rounded-t-[1.75rem] border border-slate-800 bg-slate-900 shadow-[0_-20px_50px_rgba(2,6,23,0.8)] md:max-h-[80vh] md:max-w-3xl md:rounded-3xl md:shadow-2xl md:shadow-slate-950/60">
+            <div className="relative flex w-full max-h-[85vh] flex-col overflow-hidden rounded-t-[1.75rem] border border-slate-200 bg-white shadow-[0_-12px_40px_rgba(15,23,42,0.18)] md:border-slate-800 md:bg-slate-900 md:max-h-[80vh] md:max-w-3xl md:rounded-3xl md:shadow-2xl md:shadow-slate-950/60">
               <button
                 type="button"
                 onClick={() => setIsLocationModalOpen(false)}
-                className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 bg-slate-950/90 text-slate-300 shadow-lg shadow-slate-950/40 transition hover:border-emerald-500/50 hover:text-white md:h-11 md:w-11"
+                className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-slate-600 shadow-sm transition hover:border-emerald-500/50 hover:text-slate-900 md:h-11 md:w-11 md:border-slate-700 md:bg-slate-950/90 md:text-slate-300 md:shadow-lg md:shadow-slate-950/40 md:hover:text-white"
                 aria-label="Close location modal"
               >
                 <X className="h-4 w-4 md:h-5 md:w-5" />
               </button>
 
-              <div className="flex shrink-0 items-center justify-between border-b border-slate-800 px-4 pb-3 pt-4 md:px-5 md:pt-5">
+              <div className="flex shrink-0               items-center justify-between border-b border-slate-100 px-4 pb-3 pt-4 md:border-slate-800 md:px-5 md:pt-5">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-400">
+                                <p className="text-lg font-bold text-slate-900 md:text-[10px] md:font-semibold md:uppercase md:tracking-[0.22em] md:text-emerald-400">
                     Select Location
                   </p>
-                  <h3 className="mt-1 text-lg font-bold text-white md:text-xl">State & City</h3>
+                                <h3 className="mt-1 text-xs font-medium text-slate-500 md:text-xl md:font-bold md:text-white">State & City</h3>
                 </div>
-              </div>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    setSelectedState("India");
+                                                    setSelectedCity("All India");
+                                                  }}
+                                                  className="mr-12 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700 md:mr-14 md:border-slate-700 md:bg-slate-950/70 md:text-slate-300 md:hover:border-emerald-500/50 md:hover:text-white"
+                                                >
+                                                  Reset
+                                                </button>
+                                              </div>
 
               <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 touch-pan-y md:grid md:grid-cols-[1fr_1.1fr] md:p-5">
-                <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
-                  <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                <div className="flex min-h-0 flex-1 flex-col max-md:flex-none max-md:shrink-0                 rounded-2xl border border-slate-200 bg-slate-50 p-3 md:border-slate-800 md:bg-slate-950/70">
+                                  <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-600 md:text-[10px] md:text-slate-400">
                     State
                   </label>
+                  <button
+                    type="button"
+                    aria-expanded={openDropdown === "state"}
+                    onClick={() => setOpenDropdown(openDropdown === "state" ? null : "state")}
+                    className="mb-2 flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 text-left text-sm font-medium text-slate-900 md:hidden"
+                  >
+                    <span className="truncate">{selectedState}</span>
+                    <ChevronDown className={`h-4 w-4 shrink-0 text-slate-500 transition ${openDropdown === "state" ? "rotate-180" : ""}`} />
+                  </button>
                   <input
                     type="text"
                     value={stateSearch}
                     onChange={(e) => setStateSearch(e.target.value)}
                     placeholder="Search state"
-                    className="mb-3 h-11 w-full rounded-xl border border-slate-800 bg-slate-900 px-3 text-sm text-white placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none"
+                    className={`${openDropdown === "state" ? "" : "hidden"} mb-3 h-11 w-full rounded-xl border border-slate-200 !bg-white px-3 text-sm !text-slate-900 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none md:block md:border-slate-800 md:!bg-[rgba(15,23,42,0.9)] md:!text-[#f8fafc]`}
                   />
 
                   <div
-                    className="min-h-0 max-h-[32vh] flex-1 overflow-y-auto overscroll-contain pr-1 md:max-h-[46vh]"
+                    className={`${openDropdown === "state" ? "" : "hidden"} min-h-0 max-h-[38vh] flex-1 overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white p-1.5 md:block md:rounded-none md:border-0 md:bg-transparent md:p-0 pr-1 md:max-h-[46vh]`}
                     style={{ WebkitOverflowScrolling: "touch" }}
                   >
                     <div className="flex flex-wrap gap-2">
                       {isLocationLoading ? (
-                        <p className="w-full rounded-xl border border-dashed border-slate-700 px-3 py-5 text-center text-xs text-slate-500">
+                        <p className="w-full rounded-xl border border-dashed                         border-slate-300 px-3 py-5 text-center text-xs text-slate-500 md:border-slate-700">
                           Loading locations...
                         </p>
                       ) : visibleStates.length > 0 ? (
@@ -465,11 +462,14 @@ const Navbar = () => {
                           <button
                             key={state}
                             type="button"
-                            onClick={() => handleStateSelect(state)}
-                            className={`flex min-w-[calc(50%-0.5rem)] flex-1 basis-[calc(50%-0.5rem)] items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                            onClick={() => {
+                              handleStateSelect(state);
+                              setOpenDropdown(null);
+                            }}
+                            className={`flex min-w-full flex-1 basis-full md:min-w-[calc(50%-0.5rem)] md:basis-[calc(50%-0.5rem)] items-center justify-between rounded-xl px-3 py-3 text-left text-sm transition md:py-2.5 ${
                               selectedState === state
-                                ? "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30"
-                                : "text-slate-300 hover:bg-slate-800/90 hover:text-white"
+                                ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-300 md:bg-emerald-500/10 md:text-emerald-400 md:ring-emerald-500/30"
+                                : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100 md:bg-transparent md:text-slate-300 md:ring-0 md:hover:bg-slate-800/90 md:hover:text-white"
                             }`}
                           >
                             <span>{state}</span>
@@ -477,7 +477,7 @@ const Navbar = () => {
                           </button>
                         ))
                       ) : (
-                        <p className="w-full rounded-xl border border-dashed border-slate-700 px-3 py-5 text-center text-xs text-slate-500">
+                        <p className="w-full rounded-xl border border-dashed                         border-slate-300 px-3 py-5 text-center text-xs text-slate-500 md:border-slate-700">
                           No state found
                         </p>
                       )}
@@ -485,29 +485,38 @@ const Navbar = () => {
                   </div>
                 </div>
 
-                <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+                <div className="flex min-h-0 flex-1 flex-col max-md:flex-none max-md:shrink-0                 rounded-2xl border border-slate-200 bg-slate-50 p-3 md:border-slate-800 md:bg-slate-950/70">
                   <div className="mb-2 flex items-center justify-between gap-3">
-                    <label className="block text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                                    <label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-600 md:text-[10px] md:text-slate-400">
                       City
                     </label>
                     <span className="text-[10px] text-slate-500">{selectedState}</span>
                   </div>
 
+                  <button
+                    type="button"
+                    aria-expanded={openDropdown === "city"}
+                    onClick={() => setOpenDropdown(openDropdown === "city" ? null : "city")}
+                    className="mb-2 flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 text-left text-sm font-medium text-slate-900 md:hidden"
+                  >
+                    <span className="truncate">{selectedCity}</span>
+                    <ChevronDown className={`h-4 w-4 shrink-0 text-slate-500 transition ${openDropdown === "city" ? "rotate-180" : ""}`} />
+                  </button>
                   <input
                     type="text"
                     value={citySearch}
                     onChange={(e) => setCitySearch(e.target.value)}
                     placeholder="Search city"
-                    className="mb-3 h-11 w-full rounded-xl border border-slate-800 bg-slate-900 px-3 text-sm text-white placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none"
+                    className={`${openDropdown === "city" ? "" : "hidden"} mb-3 h-11 w-full rounded-xl border border-slate-200 !bg-white px-3 text-sm !text-slate-900 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none md:block md:border-slate-800 md:!bg-[rgba(15,23,42,0.9)] md:!text-[#f8fafc]`}
                   />
 
                   <div
-                    className="min-h-0 max-h-[32vh] flex-1 overflow-y-auto overscroll-contain pr-1 md:max-h-[46vh]"
+                    className={`${openDropdown === "city" ? "" : "hidden"} min-h-0 max-h-[38vh] flex-1 overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white p-1.5 md:block md:rounded-none md:border-0 md:bg-transparent md:p-0 pr-1 md:max-h-[46vh]`}
                     style={{ WebkitOverflowScrolling: "touch" }}
                   >
                     <div className="flex flex-wrap gap-2">
                       {isLocationLoading ? (
-                        <p className="w-full rounded-xl border border-dashed border-slate-700 px-3 py-5 text-center text-xs text-slate-500">
+                        <p className="w-full rounded-xl border border-dashed                         border-slate-300 px-3 py-5 text-center text-xs text-slate-500 md:border-slate-700">
                           Loading cities...
                         </p>
                       ) : visibleCities.length > 0 ? (
@@ -516,11 +525,14 @@ const Navbar = () => {
                             key={city}
                             type="button"
                             aria-pressed={selectedCity === city}
-                            onClick={() => handleCitySelect(city)}
-                            className={`flex min-w-[calc(50%-0.5rem)] flex-1 basis-[calc(50%-0.5rem)] items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                            onClick={() => {
+                              handleCitySelect(city);
+                              setOpenDropdown(null);
+                            }}
+                            className={`flex min-w-full flex-1 basis-full md:min-w-[calc(50%-0.5rem)] md:basis-[calc(50%-0.5rem)] items-center justify-between rounded-xl px-3 py-3 text-left text-sm transition md:py-2.5 ${
                               selectedCity === city
-                                ? "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.2)]"
-                                : "text-slate-300 hover:bg-slate-800/90 hover:text-white"
+                                ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-300 md:bg-emerald-500/10 md:text-emerald-400 md:ring-emerald-500/30 md:shadow-[inset_0_0_0_1px_rgba(16,185,129,0.2)]"
+                                : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100 md:bg-transparent md:text-slate-300 md:ring-0 md:hover:bg-slate-800/90 md:hover:text-white"
                             }`}
                           >
                             <span>{city}</span>
@@ -528,7 +540,7 @@ const Navbar = () => {
                           </button>
                         ))
                       ) : (
-                        <p className="w-full rounded-xl border border-dashed border-slate-700 px-3 py-5 text-center text-xs text-slate-500">
+                        <p className="w-full rounded-xl border border-dashed                         border-slate-300 px-3 py-5 text-center text-xs text-slate-500 md:border-slate-700">
                           No city found for this state
                         </p>
                       )}
@@ -537,9 +549,9 @@ const Navbar = () => {
                 </div>
               </div>
 
-              <div className="flex shrink-0 flex-col gap-3 border-t border-slate-800 bg-slate-950/60 px-4 py-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] md:flex-row md:items-center md:justify-between md:px-5">
-                <div className="flex min-w-0 items-center gap-2 text-xs text-slate-300">
-                  <MapPin className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+              <div className="flex shrink-0 flex-col gap-3               border-t border-slate-200 bg-white px-4 py-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] md:flex-row md:items-center md:justify-between md:border-slate-800 md:bg-slate-950/60 md:px-5">
+                              <div className="flex min-w-0 items-center gap-2 text-xs text-slate-600 md:text-slate-300">
+                                <MapPin className="h-3.5 w-3.5 shrink-0 text-emerald-600 md:text-emerald-400" />
                   <span className="truncate">{selectedCity}, {selectedState}</span>
                 </div>
 
@@ -547,7 +559,7 @@ const Navbar = () => {
                   <button
                     type="button"
                     onClick={() => setIsLocationModalOpen(false)}
-                    className="inline-flex flex-1 items-center justify-center rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2.5 text-xs font-semibold text-slate-300 transition hover:border-slate-600 hover:text-white active:scale-[0.99] md:flex-none"
+                    className="inline-flex flex-1 items-center justify-center rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 active:scale-[0.99] md:flex-none md:border-slate-700 md:bg-slate-900 md:text-slate-300 md:hover:border-slate-600 md:hover:text-white"
                   >
                     Cancel
                   </button>

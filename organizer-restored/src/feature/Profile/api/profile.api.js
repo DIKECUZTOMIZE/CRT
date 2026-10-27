@@ -62,6 +62,7 @@ const mergeCurrentUserIntoProfile = (profile, user) => {
     phone: merged.personal?.phone || safeUser.phone || "",
     avatar: merged.personal?.avatar || safeUser.avatar || safeUser.profileImage || FALLBACK_AVATAR,
     role: merged.personal?.role || safeUser.role || "ORGANIZER",
+    roles: merged.personal?.roles || safeUser.roles || undefined,
     isVerified: Boolean(merged.personal?.isVerified ?? safeUser.isVerified ?? false),
   };
 
@@ -114,6 +115,7 @@ const mergeProfileResponse = (profile) => {
       email: safeProfile?.personal?.email || "",
       phone: safeProfile?.personal?.phone || "",
       role: safeProfile?.personal?.role || "ORGANIZER",
+      roles: safeProfile?.personal?.roles || undefined,
       avatar: safeProfile?.personal?.avatar || FALLBACK_AVATAR,
       isVerified: Boolean(safeProfile?.personal?.isVerified),
     },

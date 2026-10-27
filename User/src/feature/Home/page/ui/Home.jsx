@@ -29,7 +29,7 @@ export const Home = ({ initialLoginOpen = false, initialRegisterOpen = false }) 
     searchQuery,
     setSearchQuery,
     activeQuickFilter,
-    setActiveQuickFilter,
+    handleQuickFilterChange,
     homeSlides,
     homeSections,
     visibleHomeSections,
@@ -62,7 +62,7 @@ export const Home = ({ initialLoginOpen = false, initialRegisterOpen = false }) 
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         activeFilter={activeQuickFilter}
-        onFilterChange={setActiveQuickFilter}
+        onFilterChange={handleQuickFilterChange}
         slides={homeSlides}
       />
 
@@ -76,17 +76,19 @@ export const Home = ({ initialLoginOpen = false, initialRegisterOpen = false }) 
             {visibleHomeSections.map(({ key }) => {
               const SectionComponent = sectionMap[key];
 
-              if (!SectionComponent || !homeSections[key]?.length) {
+              if (!SectionComponent) {
                 return null;
               }
 
               return (
                 <SectionComponent
                   key={key}
+                  sectionKey={key}
                   competitions={homeSections[key]}
                   category={selectedCategory}
                   search={searchQuery}
                   filter={activeQuickFilter}
+                  quickFilters={activeQuickFilter}
                   savedIds={savedIds}
                   onToggleSave={handleToggleSave}
                 />

@@ -46,3 +46,25 @@ backend-restored/uploads/*
 .tmp.out
 .vercel
 .env*
+!.env.live-test.example
+
+# Local authentication/test captures
+/cookies.txt
+/cookies_valid.txt
+/.crt_test_cookies.txt
+/admin-login-cookies.txt
+/case2-cookies.txt
+/admin-login-body.txt
+/admin-login-headers.txt
+/case2-login-body.txt
+/case2-login-headers.txt
+/case2-current-body.txt
+/case2-current-headers.txt
+/backend-restored/tmp-login.txt
+/backend-restored/output-notify.txt
+/cookies_valid.json
+/User/cookie.txt
+/User/cookies.txt
+
+# Local database backups
+/backups/mongodb/

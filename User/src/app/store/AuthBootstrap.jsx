@@ -115,7 +115,7 @@ const AuthBootstrap = ({ children }) => {
         navigate(redirectPath, { replace: true });
       }
     }
-  }, [normalizedCurrentPath, status, user]);
+  }, [normalizedCurrentPath, status, user, navigate]);
 
   const isAuthRoute = AUTH_PATHS.has(normalizedCurrentPath);
   const shouldShowRestoreLoader = (status === "idle" || status === "loading") && !isPublicRoute && !isAuthRoute && !user;
@@ -131,5 +131,4 @@ const AuthBootstrap = ({ children }) => {
   return children;
 };
 
-export { shouldBootstrapAuthForPath };
 export default AuthBootstrap;

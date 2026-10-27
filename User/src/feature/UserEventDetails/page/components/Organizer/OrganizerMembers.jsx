@@ -1,45 +1,39 @@
 import React from "react";
-import { Users, Phone } from "lucide-react";
+import { Users } from "lucide-react";
 import DetailAccordion from "../../../../../shared/components/ui/DetailAccordion";
 
-export const OrganizerMembers = ({ members = [], initialOpen = false }) => {
+export const OrganizerMembers = ({ members = [], initialOpen = false, open = false, onToggle }) => {
   if (!Array.isArray(members) || members.length === 0) return null;
-
-  const limitedMembers = members.slice(0, 3);
 
   return (
     <DetailAccordion
       title="Organizer Team"
-      badge={`${limitedMembers.length} ${limitedMembers.length === 1 ? "Member" : "Members"}`}
+      badge={`${members.length} ${members.length === 1 ? "Member" : "Members"}`}
       icon={Users}
       initialOpen={initialOpen}
+      open={open}
+      onToggle={onToggle}
       viewLabel="View team"
       hideLabel="Hide team"
       iconClassName="panel-icon--emerald"
       bodyClassName="panel-body--stacked"
     >
       <div className="stack-list stack-list--dense">
-        {limitedMembers.map((member, idx) => {
+        {members.map((member, idx) => {
           const name = typeof member === "object" ? member.name : member;
-          const role = typeof member === "object" && member.role ? member.role : "Organizer";
-          const phone = typeof member === "object" ? member.phone : null;
+          const role = typeof member === "object" ? member.role : "";
+          const contact = typeof member === "object" ? member.contact : "";
+          const title = [name, role, contact].filter(Boolean).join(" • ");
+
+          if (!title) return null;
 
           return (
-            <div key={idx} className="stack-item stack-item--row" title={`${name} • ${role}`}>
+            <div key={idx} className="stack-item stack-item--row stack-item--light" title={title}>
               <div className="min-w-0">
-                <p className="truncate text-xs font-bold text-slate-900">{name}</p>
-                <p className="mt-0.5 text-[9px] font-medium text-slate-500">{role}</p>
+                {name && <p className="truncate text-xs font-bold text-slate-900">{name}</p>}
+                {role && <p className="mt-0.5 text-[9px] font-medium text-slate-500">{role}</p>}
+                {contact && <p className="mt-0.5 break-all text-[9px] font-medium text-slate-600">Contact: {contact}</p>}
               </div>
-
-              {phone && (
-                <a
-                  href={`tel:${phone}`}
-                  className="action-icon"
-                  title={`Call ${name}`}
-                >
-                  <Phone className="h-3 w-3" />
-                </a>
-              )}
             </div>
           );
         })}

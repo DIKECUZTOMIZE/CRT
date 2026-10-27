@@ -5,7 +5,7 @@ import { Toaster } from "sonner";
 
 import { SeoManager } from "../seo/SeoManager";
 import AuthBootstrap from "../store/AuthBootstrap";
-import { getEffectiveRole, getPortalBaseUrl, getRoleHomePath, normalizeRole } from "../utils/roleUtils";
+import { getEffectiveRole, getPortalBaseUrl, getRoleHomePath } from "../utils/roleUtils";
 
 // Public Pages
 import Home from "../../feature/Home/page/ui/Home";

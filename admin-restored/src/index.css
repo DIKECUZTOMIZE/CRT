@@ -34,3 +34,147 @@ button, input {
 input::placeholder {
   color: #64748b;
 }
+
+/* Event Details accordion content styles, intentionally limited to desktop (Tailwind lg). */
+@layer components {
+  @media (min-width: 64rem) {
+    .panel-body--stacked {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .panel-badge--emerald {
+      border-color: rgba(52, 211, 153, 0.25);
+      background: rgba(16, 185, 129, 0.09);
+      color: rgb(110 231 183);
+    }
+
+    .stack-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .stack-list--dense {
+      gap: 0.7rem;
+    }
+
+    .stack-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      border-radius: 0.8rem;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: rgba(2, 6, 23, 0.38);
+      padding: 0.7rem 0.75rem;
+      transition: border-color 160ms ease, background-color 160ms ease;
+    }
+
+    .stack-item:hover {
+      border-color: rgba(148, 163, 184, 0.32);
+      background: rgba(15, 23, 42, 0.4);
+    }
+
+    .stack-item--row {
+      align-items: flex-start;
+    }
+
+    .step-row,
+    .check-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.7rem;
+    }
+
+    .step-number {
+      display: inline-flex;
+      height: 1.35rem;
+      width: 1.35rem;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      border: 1px solid rgba(52, 211, 153, 0.28);
+      background: rgba(16, 185, 129, 0.1);
+      color: rgb(110 231 183);
+      font-size: 0.62rem;
+      font-weight: 800;
+    }
+
+    .step-text {
+      padding-top: 0.1rem;
+      color: rgb(203 213 225);
+      font-size: 0.75rem;
+      line-height: 1.6;
+    }
+
+    .info-pill,
+    .info-note {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      border-radius: 0.8rem;
+      border: 1px solid rgba(16, 185, 129, 0.22);
+      background: rgba(16, 185, 129, 0.08);
+      padding: 0.7rem 0.8rem;
+    }
+
+    .info-pill--success {
+      border-color: rgba(52, 211, 153, 0.28);
+    }
+
+    .info-pill__content,
+    .info-note__content {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      min-width: 0;
+    }
+
+    .info-note {
+      border-color: rgba(251, 191, 36, 0.2);
+      background: rgba(245, 158, 11, 0.06);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.4rem;
+      border: 1px solid transparent;
+      padding: 0.12rem 0.38rem;
+      font-size: 0.55rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .badge-amber {
+      border-color: rgba(245, 158, 11, 0.25);
+      background: rgba(245, 158, 11, 0.08);
+      color: rgb(252 211 77);
+    }
+
+    .action-icon {
+      display: inline-flex;
+      height: 1.8rem;
+      width: 1.8rem;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.55rem;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: rgba(15, 23, 42, 0.9);
+      color: rgb(148 163 184);
+      transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+    }
+
+    .action-icon:hover {
+      border-color: rgba(52, 211, 153, 0.4);
+      color: rgb(110 231 183);
+    }
+  }
+}

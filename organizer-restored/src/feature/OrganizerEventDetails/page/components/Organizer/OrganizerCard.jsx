@@ -1,5 +1,5 @@
 import React from "react";
-import { ShieldCheck, Mail, ExternalLink } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
 export const OrganizerCard = ({ organizer }) => {
   if (!organizer) return null;

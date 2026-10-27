@@ -1,10 +1,9 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 
 import { getOrganizerProfile, updateOrganizerProfile } from "../../feature/Profile/api/profile.api.js";
 import { initialProfileData } from "../../feature/Profile/utils/initialProfileData.jsx";
-
-const OrganizerAppContext = createContext(null);
+import { OrganizerAppContext } from "./organizerAppContext.js";
 
 export const OrganizerAppProvider = ({ children }) => {
   const { user, status } = useSelector((state) => state.auth || {});
@@ -78,14 +77,4 @@ export const OrganizerAppProvider = ({ children }) => {
   );
 
   return <OrganizerAppContext.Provider value={value}>{children}</OrganizerAppContext.Provider>;
-};
-
-export const useOrganizerApp = () => {
-  const context = useContext(OrganizerAppContext);
-
-  if (!context) {
-    throw new Error("useOrganizerApp must be used within OrganizerAppProvider");
-  }
-
-  return context;
 };

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
@@ -6,7 +6,15 @@ import apiClient, { API_ENDPOINTS, normalizeError } from "../../../app/config/ax
 
 import { useHomeEvents } from "./useHomeEvents.jsx";
 import { getSavedEvents, toggleSavedEvent } from "../../UserProfile/api/userProfile.api.js";
-import { dedupeEventsById, dedupeHomeSections } from "../utils/homeSectionUtils.js";
+import {
+  DEFAULT_HOME_QUICK_FILTER,
+  HOME_SECTION_DEFINITIONS,
+  dedupeEventsById,
+  dedupeHomeSections,
+  getHomeBudgetSections,
+  matchesHomeQuickFilter,
+  toggleHomeQuickFilter,
+} from "../utils/homeSectionUtils.js";
 
 const isKnownBrokenUploadUrl = (value) => {
   if (!value) return false;
@@ -34,15 +42,6 @@ const fetchHomeSlides = async () => {
   }
 };
 
-const getMinEntryFee = (event) => {
-  const entries = Array.isArray(event?.entries) ? event.entries.filter(Boolean) : [];
-  const prices = entries
-    .map((entry) => Number(entry?.price ?? entry?.amount ?? entry?.entryFee ?? 0))
-    .filter((price) => Number.isFinite(price));
-
-  return prices.length ? Math.min(...prices) : 0;
-};
-
 const getViewsCount = (event) => Number(event?.viewsCount ?? event?.viewCount ?? event?.impressions ?? 0) || 0;
 const getRatingValue = (event) => Number(event?.rating ?? event?.avgRating ?? 0) || 0;
 const getRatingsCount = (event) => Number(event?.ratingsCount ?? event?.ratingCount ?? event?.reviewCount ?? 0) || 0;
@@ -68,30 +67,13 @@ const getLocationMatchScore = (event, city, state) => {
   return 0;
 };
 
-const matchesQuickFilterByName = (event, filterName) => {
-  if (!filterName || filterName === "all") return true;
-
-  const mode = String(event?.mode || event?.eventMode || "").toLowerCase();
-  const status = String(event?.status || "").toLowerCase();
-  const entryFee = getMinEntryFee(event);
-
-  if (filterName === "online") return mode.includes("online") || /online/i.test(event?.location || "");
-  if (filterName === "in-person") return mode.includes("offline") || mode.includes("in-person") || (!mode && !/online/i.test(event?.location || ""));
-  if (filterName === "free") return entryFee === 0 || /free/i.test(String(event?.entryFee || ""));
-  if (filterName === "upcoming") return status !== "completed" && status !== "closed";
-  if (filterName === "budget") return entryFee >= 0 && entryFee <= 50000;
-  if (filterName === "premium") return entryFee > 50000;
-
-  return true;
-};
-
-const byNewestFirst = (a, b) => {
+export const byNewestFirst = (a, b) => {
   const aTime = new Date(a?.createdAt || a?.updatedAt || a?.eventDate || 0).getTime();
   const bTime = new Date(b?.createdAt || b?.updatedAt || b?.eventDate || 0).getTime();
   return bTime - aTime;
 };
 
-const byPopularity = (a, b) => {
+export const byPopularity = (a, b) => {
   const aViews = getViewsCount(a);
   const bViews = getViewsCount(b);
   if (bViews !== aViews) return bViews - aViews;
@@ -107,16 +89,13 @@ const byPopularity = (a, b) => {
   return 0;
 };
 
-const byNearbyPriority = (a, b, city, state) => {
+export const byNearbyPriority = (a, b, city, state) => {
   const aMatch = getLocationMatchScore(a, city, state);
   const bMatch = getLocationMatchScore(b, city, state);
 
   if (aMatch !== bMatch) return bMatch - aMatch;
   return byPopularity(a, b);
 };
-
-const byBudget = (a, b) => getMinEntryFee(a) - getMinEntryFee(b) || byPopularity(b, a);
-const byHighBudget = (a, b) => getMinEntryFee(b) - getMinEntryFee(a) || byPopularity(b, a);
 
 export const useHomePage = ({ initialLoginOpen = false, initialRegisterOpen = false } = {}) => {
   const location = useLocation();
@@ -129,7 +108,10 @@ export const useHomePage = ({ initialLoginOpen = false, initialRegisterOpen = fa
 
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeQuickFilter, setActiveQuickFilter] = useState(null);
+  const [activeQuickFilter, setActiveQuickFilter] = useState([DEFAULT_HOME_QUICK_FILTER]);
+  const handleQuickFilterChange = (filterName) => {
+    setActiveQuickFilter((selectedFilters) => toggleHomeQuickFilter(selectedFilters, filterName));
+  };
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(
     !isLocalHomeBypass && Boolean(!authUser && (initialLoginOpen || initialRegisterOpen || ["/login", "/register"].includes(location.pathname)))
   );
@@ -265,7 +247,7 @@ export const useHomePage = ({ initialLoginOpen = false, initialRegisterOpen = fa
         const matchesSearch =
           !effectiveSearchQuery || searchableText.includes(effectiveSearchQuery.toLowerCase());
 
-        const matchesQuick = matchesQuickFilterByName(event, activeQuickFilter);
+        const matchesQuick = matchesHomeQuickFilter(event, activeQuickFilter);
 
         return matchesCategory && matchesSearch && matchesQuick;
       })
@@ -274,32 +256,18 @@ export const useHomePage = ({ initialLoginOpen = false, initialRegisterOpen = fa
     const nearbyEvents = [...filteredEvents].sort((a, b) => byNearbyPriority(a, b, userCity, userState));
     const recentEvents = [...filteredEvents].sort(byNewestFirst);
     const popularEvents = [...filteredEvents].sort(byPopularity);
-    const budgetEvents = [...filteredEvents]
-      .filter((event) => {
-        const minEntryFee = getMinEntryFee(event);
-        return minEntryFee >= 0 && minEntryFee <= 50000;
-      })
-      .sort(byBudget);
-    const highBudgetEvents = [...filteredEvents]
-      .filter((event) => getMinEntryFee(event) > 50000)
-      .sort(byHighBudget);
+    const budgetSections = getHomeBudgetSections(filteredEvents);
 
     return dedupeHomeSections({
       popularCompetitions: popularEvents,
       recentCompetitions: recentEvents.slice(0, 8),
       nearbyCompetitions: nearbyEvents.slice(0, 8),
-      budgetFriendlyCompetitions: budgetEvents.slice(0, 8),
-      highBudgetCompetitions: highBudgetEvents.slice(0, 8),
+      budgetFriendlyCompetitions: budgetSections.budgetFriendlyCompetitions.slice(0, 8),
+      highBudgetCompetitions: budgetSections.highBudgetCompetitions.slice(0, 8),
     });
   }, [allEvents, selectedCategory, effectiveSearchQuery, activeQuickFilter, currentLocation?.city, currentLocation?.state]);
 
-  const visibleHomeSections = [
-    { key: "popularCompetitions", title: "Popular Competitions" },
-    { key: "recentCompetitions", title: "Recently Added" },
-    { key: "nearbyCompetitions", title: "Nearby Events" },
-    { key: "budgetFriendlyCompetitions", title: "Budget Friendly" },
-    { key: "highBudgetCompetitions", title: "High Budget" },
-  ].filter(({ key }) => (homeSections[key] || []).length > 0);
+  const visibleHomeSections = HOME_SECTION_DEFINITIONS;
 
   return {
     authUser,
@@ -313,7 +281,7 @@ export const useHomePage = ({ initialLoginOpen = false, initialRegisterOpen = fa
     searchQuery,
     setSearchQuery,
     activeQuickFilter,
-    setActiveQuickFilter,
+    handleQuickFilterChange,
     homeSlides,
     homeSections,
     visibleHomeSections,

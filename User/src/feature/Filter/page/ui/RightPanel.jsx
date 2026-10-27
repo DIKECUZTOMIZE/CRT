@@ -21,6 +21,7 @@ export const RightPanel = ({
   onOpenMobileFilter,
   activeFilterCount = 0,
   className = "",
+  hideTitle = false,
 }) => {
   const navigate = useNavigate();
 
@@ -48,14 +49,20 @@ export const RightPanel = ({
       className={`relative z-10 w-full min-w-0 overflow-visible space-y-4 ${className}`}
     >
       {/* HEADER CARD */}
-      <div className="w-full rounded-2xl border border-slate-800/80 bg-slate-900/95 p-3.5 sm:p-4 shadow-xl backdrop-blur-xl ring-1 ring-white/5">
+      <div
+        className={`w-full rounded-2xl border border-[#CDE9DB] bg-white p-3.5 shadow-[0_10px_26px_rgba(15,118,110,0.05)] backdrop-blur-xl sm:p-4 ${
+          hideTitle ? "sticky top-[6.8rem] z-30 sm:static" : ""
+        }`}
+      >
         {/* ROW 1: TITLE & BADGE */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <h2 className="text-sm sm:text-base font-bold tracking-wide text-white">
-            Competitions
-          </h2>
+          {!hideTitle && (
+            <h2 className="text-sm font-bold tracking-wide text-slate-900 sm:text-base">
+              Competitions
+            </h2>
+          )}
 
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-emerald-400">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 sm:text-[11px]">
             <Sparkles className="h-3 w-3" />
             {displayCompetitions.length}{" "}
             {displayCompetitions.length === 1 ? "Result" : "Results"}
@@ -63,17 +70,17 @@ export const RightPanel = ({
         </div>
 
         {/* SUBTITLE */}
-        <p className="mt-1 text-[11px] sm:text-xs text-slate-400 leading-normal">
+        <p className="mt-1 text-[11px] leading-normal text-slate-500 sm:text-xs">
           Discover active challenges, hackathons, and global opportunities
         </p>
 
         {/* ROW 2: ACTION BUTTONS (MOBILE STACK / FLEX) */}
-        <div className="mt-3 flex items-center gap-2 pt-3 border-t border-slate-800/80">
+        <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3">
           {onOpenMobileFilter && (
             <button
               type="button"
               onClick={onOpenMobileFilter}
-              className="flex sm:hidden w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-2.5 text-xs font-semibold text-emerald-400 active:scale-95 transition-all"
+              className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-2.5 text-xs font-semibold text-emerald-700 transition-all active:scale-95 sm:hidden"
             >
               <Filter className="h-3.5 w-3.5" />
               <span>Filters</span>
@@ -93,12 +100,12 @@ export const RightPanel = ({
           {Array.from({ length: 8 }).map((_, index) => (
             <div
               key={index}
-              className="h-64 animate-pulse rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4"
+              className="h-64 animate-pulse rounded-2xl border border-emerald-100 bg-white p-4"
             >
-              <div className="h-28 rounded-xl bg-slate-800/60" />
+              <div className="h-28 rounded-xl bg-slate-100" />
               <div className="mt-3 space-y-2">
-                <div className="h-4 w-3/4 rounded bg-slate-800/80" />
-                <div className="h-3 w-1/2 rounded bg-slate-800/50" />
+                <div className="h-4 w-3/4 rounded bg-slate-200" />
+                <div className="h-3 w-1/2 rounded bg-slate-100" />
               </div>
             </div>
           ))}
@@ -120,16 +127,16 @@ export const RightPanel = ({
           })}
         </div>
       ) : (
-        <div className="flex min-h-[280px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800/80 bg-slate-900/40 p-6 text-center">
+        <div className="flex min-h-[280px] flex-col items-center justify-center rounded-2xl border border-dashed border-emerald-200 bg-white p-6 text-center">
           <SearchX className="h-6 w-6 text-slate-500" />
-          <h3 className="mt-3 text-sm font-semibold text-slate-200">
+          <h3 className="mt-3 text-sm font-semibold text-slate-800">
             No competitions found
           </h3>
           {onResetFilters && (
             <button
               type="button"
               onClick={onResetFilters}
-              className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-400"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               Clear Filters

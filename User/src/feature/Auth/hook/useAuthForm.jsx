@@ -8,7 +8,7 @@ import {
   registerOrganizerAccount,
   registerUserAccount,
 } from "../state/auth.slice.js";
-import { normalizeRole } from "../../../app/utils/roleUtils.js";
+import { hasRoleAccess } from "../../../app/utils/roleUtils.js";
 
 export const useAuthForm = (mode, redirectPath, allowedRoles) => {
   const dispatch = useDispatch();
@@ -36,16 +36,18 @@ export const useAuthForm = (mode, redirectPath, allowedRoles) => {
       }
 
       if (allowedRoles && Array.isArray(allowedRoles)) {
-        const normalizedUserRole = normalizeRole(user?.role);
-        const normalizedAllowedRoles = allowedRoles.map((role) => normalizeRole(role));
-
-        if (!normalizedAllowedRoles.includes(normalizedUserRole)) {
+        if (!allowedRoles.some((role) => hasRoleAccess(user, role))) {
           await dispatch(logoutUser()).unwrap();
           throw new Error("Your account type is not authorized to log in here.");
         }
       }
 
       if (redirectPath) {
+        if (mode === "login" && redirectPath === "/profile") {
+          navigate(redirectPath, { replace: true });
+          return;
+        }
+
         if (typeof window !== "undefined") {
           window.location.replace(redirectPath);
           return;

@@ -12,8 +12,8 @@ import {
 } from "lucide-react";
 import DetailAccordion from "../../../../../shared/components/ui/DetailAccordion";
 
-export const CompetitionDetails = ({ details }) => {
-  if (!details || typeof details !== "object") return null;
+export const CompetitionDetails = ({ details, customFields = [], open = false, onToggle }) => {
+  const safeDetails = details && typeof details === "object" ? details : {};
 
   const formatValue = (val) => {
     if (Array.isArray(val)) return val.filter(Boolean).join(", ");
@@ -99,13 +99,6 @@ export const CompetitionDetails = ({ details }) => {
     "location",
   ]);
 
-  const hiddenKeys = new Set([
-    "teamSize",
-    "skillLevel",
-    "ageGroup",
-    "eligibility",
-  ]);
-
   const orderedKeys = [
     "category",
     "participationType",
@@ -113,14 +106,14 @@ export const CompetitionDetails = ({ details }) => {
     "mode",
   ];
 
-  const detailEntries = Object.entries(details || {});
+  const detailEntries = Object.entries(safeDetails);
   const seen = new Set();
 
   const items = [];
 
   orderedKeys.forEach((key) => {
-    if (Object.prototype.hasOwnProperty.call(details, key)) {
-      const value = details[key];
+    if (Object.prototype.hasOwnProperty.call(safeDetails, key)) {
+      const value = safeDetails[key];
       if (value !== undefined && value !== null && value !== "") {
         seen.add(key);
         items.push({
@@ -136,7 +129,6 @@ export const CompetitionDetails = ({ details }) => {
   detailEntries.forEach(([key, value]) => {
     if (seen.has(key)) return;
     if (duplicateKeys.has(key)) return;
-    if (hiddenKeys.has(key)) return;
     if (value === undefined || value === null || value === "") return;
     items.push({
       key,
@@ -153,12 +145,18 @@ export const CompetitionDetails = ({ details }) => {
     }))
     .filter((item) => item.formattedValue && item.formattedValue.trim() !== "");
 
-  if (normalizedItems.length === 0) {
+  const registrationFields = Array.isArray(customFields)
+    ? customFields.filter((field) => typeof field?.fieldName === "string" && field.fieldName.trim())
+    : [];
+
+  if (normalizedItems.length === 0 && registrationFields.length === 0) {
     return (
       <DetailAccordion
         title="Competition Overview"
         icon={Sparkles}
         initialOpen={false}
+        open={open}
+        onToggle={onToggle}
         viewLabel="View details"
         hideLabel="Hide details"
         iconClassName="panel-icon--emerald"
@@ -180,45 +178,77 @@ export const CompetitionDetails = ({ details }) => {
   return (
     <DetailAccordion
       title="Competition Overview"
-      badge={`${normalizedItems.length} Specs`}
+      badge={registrationFields.length > 0 && normalizedItems.length === 0
+        ? `${registrationFields.length} Registration Fields`
+        : `${normalizedItems.length} Specs`}
       icon={Sparkles}
       initialOpen={false}
+      open={open}
+      onToggle={onToggle}
       viewLabel="View details"
       hideLabel="Hide details"
       iconClassName="panel-icon--emerald"
       bodyClassName="panel-body--stacked"
     >
-      <div className="grid grid-cols-2 gap-3">
-        {normalizedItems.map((item, index) => {
-          const Icon = item.icon;
+      <div className="space-y-4">
+        {normalizedItems.length > 0 && (
+          <div className="grid grid-cols-2 gap-3">
+            {normalizedItems.map((item, index) => {
+              const Icon = item.icon;
 
-          return (
-            <div
-              key={`${item.key}-${index}`}
-              className="group relative rounded-xl border border-emerald-100 bg-[#F8FBF9] p-3.5 transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-[0_10px_26px_rgba(15,118,110,0.05)]"
-            >
-              <div className="mb-3 flex items-start justify-between gap-2">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-200 bg-[#ECFDF5] text-emerald-600">
-                  <Icon className="h-4 w-4" />
+              return (
+                <div
+                  key={`${item.key}-${index}`}
+                  className="group relative rounded-xl border border-emerald-100 bg-[#F8FBF9] p-3.5 transition-colors duration-200 hover:border-emerald-200 hover:bg-[#ECFDF5]"
+                >
+                  <div className="mb-3 flex items-start justify-between gap-2">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-200 bg-[#ECFDF5] text-emerald-600">
+                      <Icon className="h-4 w-4" />
+                    </div>
+
+                    <span className="rounded-full border border-emerald-100 bg-white px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-slate-600">
+                      {index + 1}
+                    </span>
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                      {item.label}
+                    </p>
+
+                    <p className="mt-1 line-clamp-2 break-words text-xs font-extrabold tracking-tight text-slate-900 transition-colors group-hover:text-slate-900">
+                      {item.formattedValue}
+                    </p>
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+        )}
 
-                <span className="rounded-full border border-emerald-100 bg-white px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-slate-600">
-                  {index + 1}
-                </span>
-              </div>
-
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                  {item.label}
-                </p>
-
-                <p className="mt-1 line-clamp-2 break-words text-xs font-extrabold tracking-tight text-slate-900 transition-colors group-hover:text-slate-900">
-                  {item.formattedValue}
-                </p>
-              </div>
+        {registrationFields.length > 0 && (
+          <section className="rounded-xl border border-emerald-100 bg-white p-3">
+            <h4 className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-600">
+              Registration Fields
+            </h4>
+            <div className="space-y-2">
+              {registrationFields.map((field, index) => (
+                <div
+                  key={`${field.fieldName}-${index}`}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#F8FBF9] px-3 py-2"
+                >
+                  <span className="text-xs font-semibold text-slate-800">{field.fieldName}</span>
+                  <span className="flex items-center gap-2 text-[10px] text-slate-600">
+                    {typeof field.fieldType === "string" && <span>{field.fieldType}</span>}
+                    {typeof field.isRequired === "boolean" && (
+                      <span>{field.isRequired ? "Required" : "Optional"}</span>
+                    )}
+                  </span>
+                </div>
+              ))}
             </div>
-          );
-        })}
+          </section>
+        )}
       </div>
     </DetailAccordion>
   );

@@ -485,6 +485,16 @@ a {
   background: rgba(15, 23, 42, 0.4);
 }
 
+.stack-item--light {
+  border-color: rgb(209 250 229);
+  background: #f8fbf9;
+}
+
+.stack-item--light:hover {
+  border-color: rgb(167 243 208);
+  background: #ecfdf5;
+}
+
 .stack-item--row {
   align-items: flex-start;
 }
@@ -513,7 +523,7 @@ a {
 
 .step-text {
   padding-top: 0.1rem;
-  color: rgb(203 213 225);
+  color: rgb(51 65 85);
   font-size: 0.75rem;
   line-height: 1.6;
 }

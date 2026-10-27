@@ -59,6 +59,13 @@ const containsMaliciousPattern = (value) => {
 };
 
 const securityMiddleware = (app) => {
+    const isProduction = env.NODE_ENV === "production";
+    const productionAllowedOrigins = new Set([
+        "https://crtcompete.com",
+        "https://www.crtcompete.com",
+        "https://admin.crtcompete.com",
+        "https://organizer.crtcompete.com",
+    ]);
     const allowedOrigins = env.CORS_ORIGIN
         .split(",")
         .map((origin) => origin.trim())
@@ -76,6 +83,10 @@ const securityMiddleware = (app) => {
         if (!origin) return true;
 
         const normalizedOrigin = String(origin).trim();
+        if (isProduction) {
+            return productionAllowedOrigins.has(normalizedOrigin);
+        }
+
         if (allowedOrigins.includes(normalizedOrigin)) return true;
 
         const originHostname = getHostname(normalizedOrigin);

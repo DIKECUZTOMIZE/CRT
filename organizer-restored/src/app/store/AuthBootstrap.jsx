@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { bootstrapAuth } from "../../feature/Auth/state/auth.slice.js";
-import { isOrganizerRole } from "../utils/roleUtils.js";
 
 const AUTH_PATHS = new Set([
   "/organizer/login",
@@ -20,16 +19,6 @@ const AuthBootstrap = ({ children }) => {
       dispatch(bootstrapAuth());
     }
   }, [dispatch, status, isPublicAuthPath]);
-
-  useEffect(() => {
-    if (status === "authenticated" && user && AUTH_PATHS.has(currentPath)) {
-      if (isOrganizerRole(user)) {
-        window.location.replace("/organizer/dashboard");
-      } else {
-        window.location.replace("/organizer/login");
-      }
-    }
-  }, [currentPath, status, user]);
 
   if ((status === "idle" || status === "loading") && !isPublicAuthPath) {
     return (

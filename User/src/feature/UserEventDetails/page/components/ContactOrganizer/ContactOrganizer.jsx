@@ -2,6 +2,8 @@ import React from "react";
 import { MessageSquare, PhoneCall, HelpCircle } from "lucide-react";
 
 export const ContactOrganizer = ({
+  contactName,
+  email,
   whatsappNumber,
   onPlatformSupport,
   contactSupportNote,
@@ -26,6 +28,19 @@ export const ContactOrganizer = ({
           </span>
         </div>
       </div>
+
+      {contactName && (
+        <p className="text-center text-xs font-semibold text-slate-800">{contactName}</p>
+      )}
+
+      {email && (
+        <a
+          href={`mailto:${email}`}
+          className="block break-all text-center text-xs font-medium text-emerald-700 underline decoration-emerald-300 underline-offset-4"
+        >
+          {email}
+        </a>
+      )}
 
       {/* ORGANIZER WHATSAPP */}
       {cleanNumber && (

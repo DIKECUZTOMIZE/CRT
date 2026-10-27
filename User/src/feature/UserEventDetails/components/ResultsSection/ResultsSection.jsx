@@ -4,7 +4,7 @@ import DetailAccordion from "../../../../shared/components/ui/DetailAccordion";
 const normalizeWinnerCategory = (value = "") => {
   const raw = String(value ?? "").trim();
 
-  if (!raw) return "Solo";
+  if (!raw) return "";
 
   const normalized = raw.toLowerCase();
 
@@ -23,14 +23,20 @@ const normalizeWinnerCategory = (value = "") => {
   return raw;
 };
 
-export const ResultsSection = ({ results = [] }) => {
-  const safeResults = Array.isArray(results) ? results : [];
+export const ResultsSection = ({ results = [], open = false, onToggle }) => {
+  const safeResults = Array.isArray(results)
+    ? results.filter((item) => {
+        const winnerName = item?.winnerName || item?.name;
+        return typeof winnerName === "string" && winnerName.trim();
+      })
+    : [];
 
-  const groupedResults = safeResults.reduce((acc, item, index) => {
-    const participationType = item?.participationType || item?.participation || item?.type || "Solo";
+  const groupedResults = safeResults.reduce((acc, item) => {
+    const participationType = item?.participationType || item?.participation || item?.type || "";
     const category = normalizeWinnerCategory(participationType);
-    const position = item?.position || `#${index + 1}`;
-    const winnerName = item?.winnerName || item?.name || "Winner";
+    const position = item?.position || "";
+    const winnerName = item?.winnerName || item?.name;
+    if (typeof winnerName !== "string") return acc;
 
     if (!acc[category]) {
       acc[category] = [];
@@ -38,7 +44,7 @@ export const ResultsSection = ({ results = [] }) => {
 
     acc[category].push({
       position,
-      winnerName,
+      winnerName: winnerName.trim(),
       label: category,
     });
 
@@ -68,6 +74,8 @@ export const ResultsSection = ({ results = [] }) => {
       title="Winner"
       icon={Trophy}
       initialOpen={false}
+      open={open}
+      onToggle={onToggle}
       viewLabel="View details"
       hideLabel="Hide details"
       iconClassName="panel-icon--emerald"
@@ -99,9 +107,11 @@ export const ResultsSection = ({ results = [] }) => {
               {sections.map((section) => (
                 <div key={section.label} className="space-y-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center rounded-full border border-emerald-200 bg-[#ECFDF5] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">
-                      {section.label}
-                    </span>
+                    {section.label && (
+                      <span className="inline-flex items-center rounded-full border border-emerald-200 bg-[#ECFDF5] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">
+                        {section.label}
+                      </span>
+                    )}
                   </div>
 
                   <div
@@ -117,13 +127,17 @@ export const ResultsSection = ({ results = [] }) => {
                         className="rounded-xl border border-emerald-100 bg-[#F8FBF9] p-3 shadow-[0_6px_18px_rgba(15,118,110,0.03)] transition-all duration-200 hover:border-emerald-200 hover:bg-[#ECFDF5]"
                       >
                         <div className="mb-2 flex items-center justify-between gap-3">
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-amber-700">
-                            <Medal className="h-3.5 w-3.5" />
-                            {item.position}
-                          </span>
-                          <span className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                            {section.label}
-                          </span>
+                          {item.position && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-amber-700">
+                              <Medal className="h-3.5 w-3.5" />
+                              {item.position}
+                            </span>
+                          )}
+                          {section.label && (
+                            <span className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                              {section.label}
+                            </span>
+                          )}
                         </div>
 
                         <p className="text-base font-bold text-slate-900 sm:text-lg">

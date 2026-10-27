@@ -1,5 +1,6 @@
 import { normalizeAuthResponse } from "./responseUtils.js";
 import { API_BASE_URL } from "../../../app/config/apiBase.js";
+import { apiClient, API_ENDPOINTS } from "../../../app/config/axios.js";
 
 const jsonFetch = async (url, options = {}) => {
   const response = await fetch(url, {
@@ -54,9 +55,9 @@ export const logoutAdmin = async () => {
   }
 };
 
-export const getCurrentAdmin = async () => {
-  const data = await jsonFetch(`${API_BASE_URL}/api/auth/current-user`, {
-    method: "GET",
+export const getCurrentAdmin = async ({ skipAuthRefresh = false } = {}) => {
+  const { data } = await apiClient.get(API_ENDPOINTS.currentUser, {
+    skipAuthRefresh,
     headers: { Accept: "application/json" },
   });
 

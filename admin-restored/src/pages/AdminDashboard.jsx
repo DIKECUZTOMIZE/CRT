@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import {
@@ -87,6 +87,9 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
   const [statusReason, setStatusReason] = useState("");
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [deletingEvent, setDeletingEvent] = useState(false);
+  const [detailRefreshKey, setDetailRefreshKey] = useState(0);
+  const eventRequestVersion = useRef(0);
+  const editModalContext = useRef(null);
   const [sliderSlides, setSliderSlides] = useState([]);
   const [sliderLoading, setSliderLoading] = useState(false);
   const [sliderDraft, setSliderDraft] = useState({ title: "", subtitle: "", description: "", link: "", image: "", images: [], order: 0, isActive: true });
@@ -159,6 +162,7 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
   }, [initialSection]);
 
   useEffect(() => {
+    const version = ++eventRequestVersion.current;
     if (!eventId) {
       setSelectedEvent(null);
       return;
@@ -189,11 +193,11 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
         const payload = await response.json();
         const fullEvent = payload?.data?.event || payload?.event || null;
 
-        if (isMounted && fullEvent) {
+        if (isMounted && version === eventRequestVersion.current && fullEvent) {
           setSelectedEvent(fullEvent);
         }
       } catch (error) {
-        if (isMounted) {
+        if (isMounted && version === eventRequestVersion.current) {
           setSelectedEvent(match || null);
         }
       }
@@ -203,6 +207,7 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
 
     return () => {
       isMounted = false;
+      eventRequestVersion.current += 1;
     };
   }, [dashboardData.events, eventId]);
 
@@ -467,13 +472,17 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
         throw new Error(payload?.message || "Failed to update event status.");
       }
 
+      const serverEvent = payload?.data?.event || payload?.event || null;
       const nextEvent = {
         ...detailEvent,
-        status: String(payload?.data?.event?.status || statusDraft).replace(/^\w/, (s) => s.toUpperCase()),
-        statusReason: payload?.data?.event?.statusReason || normalizedReason,
+        ...serverEvent,
+        status: String(serverEvent?.status ?? statusDraft).replace(/^\w/, (s) => s.toUpperCase()),
+        statusReason: serverEvent?.statusReason ?? normalizedReason,
       };
 
+      eventRequestVersion.current += 1;
       setSelectedEvent(nextEvent);
+      setDetailRefreshKey((key) => key + 1);
       navigate(`/admin/events/${encodeURIComponent(String(eventId))}`, { replace: false });
       toast.success("Event status updated successfully.");
     } catch (error) {
@@ -594,9 +603,19 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
     };
   };
 
+  useEffect(() => {
+    const context = {};
+    editModalContext.current = context;
+    return () => {
+      editModalContext.current = null;
+    };
+  }, [eventId]);
+
   const handleEditOpen = async () => {
     if (!detailEvent) return;
 
+    const context = editModalContext.current;
+    const version = ++eventRequestVersion.current;
     try {
       const response = await fetch(`${API_BASE_URL}/api/events/${eventId}`, {
         method: "GET",
@@ -606,8 +625,10 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
         },
       });
 
+      if (version !== eventRequestVersion.current) return;
       if (response.ok) {
         const payload = await response.json();
+        if (version !== eventRequestVersion.current) return;
         const freshEvent = payload?.data?.event || payload?.event || detailEvent;
         setSelectedEvent(freshEvent);
         setEditForm(hydrateEditFormFromEvent(freshEvent));
@@ -615,10 +636,13 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
         setEditForm(hydrateEditFormFromEvent(detailEvent));
       }
     } catch {
+      if (version !== eventRequestVersion.current) return;
       setEditForm(hydrateEditFormFromEvent(detailEvent));
+    } finally {
+      if (context && context === editModalContext.current) {
+        setIsEditModalOpen(true);
+      }
     }
-
-    setIsEditModalOpen(true);
   };
 
   const handleEditClose = () => {
@@ -1080,15 +1104,19 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
       }
 
       const serverEvent = result?.data?.event || result?.event || null;
-      const refreshedEvent = serverEvent || {
+      const submittedEvent = {
         ...detailEvent,
         ...payload,
         totalSeats: Number(payload.totalSeats || 0),
         organizerContact: payload.organizerContact,
         organizerName: payload.organizerContact?.name || detailEvent.organizerName,
       };
+      // A partial server event must not drop fields it omitted.
+      const refreshedEvent = serverEvent ? { ...submittedEvent, ...serverEvent } : submittedEvent;
 
+      eventRequestVersion.current += 1;
       setSelectedEvent(refreshedEvent);
+      setDetailRefreshKey((key) => key + 1);
       setIsEditModalOpen(false);
       toast.success("Event updated successfully.");
     } catch (error) {
@@ -1367,6 +1395,7 @@ const AdminDashboard = ({ initialSection = "dashboard" }) => {
                 onEditOpen={handleEditOpen}
                 deletingEvent={deletingEvent}
                 onDeleteEvent={handleDeleteEvent}
+                refreshKey={detailRefreshKey}
               />
             ) : (
               <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-5">

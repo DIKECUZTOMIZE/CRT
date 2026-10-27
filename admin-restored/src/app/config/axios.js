@@ -36,7 +36,7 @@ const shouldRefresh = (config) => {
   }
 
   const pathname = new URL(config.url, API_BASE_URL).pathname;
-  return !authPaths.has(pathname) && pathname !== API_ENDPOINTS.currentUser;
+  return !authPaths.has(pathname);
 };
 
 apiClient.interceptors.response.use(

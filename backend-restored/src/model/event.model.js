@@ -71,6 +71,24 @@ const parseTimeValue = (value) => {
     return null;
 };
 
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+// Event date/time values are entered in India Standard Time regardless of server TZ.
+const setIstClockTime = (date, hours, minutes, seconds, milliseconds) => {
+    const istDate = new Date(date.getTime() + IST_OFFSET_MS);
+    return new Date(
+        Date.UTC(
+            istDate.getUTCFullYear(),
+            istDate.getUTCMonth(),
+            istDate.getUTCDate(),
+            hours,
+            minutes,
+            seconds,
+            milliseconds
+        ) - IST_OFFSET_MS
+    );
+};
+
 const combineDateTime = (dateValue, timeValue) => {
     const baseDate = parseEventDate(dateValue);
     if (!baseDate) return null;
@@ -78,9 +96,7 @@ const combineDateTime = (dateValue, timeValue) => {
     const baseTime = parseTimeValue(timeValue);
     if (!baseTime) return baseDate;
 
-    const result = new Date(baseDate);
-    result.setHours(baseTime.getHours(), baseTime.getMinutes(), baseTime.getSeconds(), 0);
-    return result;
+    return setIstClockTime(baseDate, baseTime.getHours(), baseTime.getMinutes(), baseTime.getSeconds(), 0);
 };
 
 export const getCombinedEventEndDateTime = (eventData = {}) => {
@@ -93,7 +109,7 @@ export const getCombinedEventEndDateTime = (eventData = {}) => {
     }
 
     if (endDateValue && !eventData.eventEndTime && !eventData.eventTime && !eventData.eventStartTime) {
-        endDate.setHours(23, 59, 59, 999);
+        return setIstClockTime(endDate, 23, 59, 59, 999);
     }
 
     return endDate;
@@ -307,7 +323,10 @@ const eventSchema = new mongoose.Schema(
         eventRules: { type: [ruleSchema], default: [] },
         securityRequirements: { type: [ruleSchema], default: [] },
         participationSteps: {
-            type: [{ text: { type: String, trim: true, maxlength: 500 } }],
+            type: [{
+                title: { type: String, trim: true, maxlength: 500 },
+                text: { type: String, trim: true, maxlength: 500 },
+            }],
             default: [],
         },
         customFields: { type: [customFieldSchema], default: [] },

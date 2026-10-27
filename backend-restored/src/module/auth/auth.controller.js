@@ -153,6 +153,8 @@ export const registerOrganizerController = async (req, res) => {
 };
 
 export const registerAdminController = async (req, res) => {
+
+    console.log("admin data");
     const data = await registerAdminService(req.body);
     setAuthCookies(res, data.accessToken, data.refreshToken, "ADMIN");
 
@@ -209,6 +211,12 @@ export const googleLoginController = async (req, res, next) => {
 };
 
 export const googleCallbackController = async (req, res, next) => {
+    if (!env.GOOGLE_CLIENT_ID) {
+        const portalFromQuery = String(req.query?.portal || "").trim().toLowerCase() === "organizer" ? "organizer" : "user";
+        const loginPath = portalFromQuery === "organizer" ? "/organizer/login" : "/login";
+        return res.redirect(getFrontendRedirectUrl(loginPath, portalFromQuery) + "?error=google_auth_failed");
+    }
+
     const state = String(req.query?.state || "").trim();
     const portalFromRequest = String(req.query?.portal || "").trim().toLowerCase();
     const validation = await validateGoogleOAuthState(state, portalFromRequest || undefined);
@@ -465,7 +473,6 @@ export const refreshTokenController = async (req, res) => {
             "Tokens refreshed successfully",
             {
                 accessToken: data.accessToken,
-                refreshToken: data.refreshToken,
             },
             200
         );

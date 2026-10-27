@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
+import { useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { getSavedEvents, toggleSavedEvent } from "../../UserProfile/api/userProfile.api.js";
 import { useFilterEvents } from "./useFilterEvents.jsx";
+import { parseHomeQuickFilters } from "../../Home/utils/homeSectionUtils.js";
 
 const INDIA_STATES = [
   "Andhra Pradesh",
@@ -123,7 +125,20 @@ const extractLocationValue = (event, key) => {
   return "";
 };
 
+const SECTION_HEADINGS = {
+  popularCompetitions: "Popular Competitions",
+  recentCompetitions: "Recently Added Competitions",
+  nearbyCompetitions: "Nearby Competitions",
+  budgetFriendlyCompetitions: "Budget Friendly Competitions",
+  highBudgetCompetitions: "High Budget Competitions",
+};
+
 export const useFilterPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedSection = searchParams.get("section");
+  const sectionKey = Object.hasOwn(SECTION_HEADINGS, requestedSection) ? requestedSection : null;
+  const homeQuickFilters = parseHomeQuickFilters(searchParams.get("quickFilters"));
+  const sectionHeading = sectionKey ? SECTION_HEADINGS[sectionKey] : "";
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const currentLocation = useSelector((state) => state.location);
   const authUser = useSelector((state) => state.auth.user);
@@ -142,6 +157,9 @@ export const useFilterPage = () => {
     minPrize: 0,
     dateRange: "all",
   });
+  const quickFilters = filters.dateRange === "upcoming"
+    ? [...new Set([...homeQuickFilters.filter((filter) => filter !== "all"), "upcoming"])]
+    : homeQuickFilters;
 
   useEffect(() => {
     if (!currentLocation) return;
@@ -167,7 +185,15 @@ export const useFilterPage = () => {
     });
   }, [currentLocation]);
 
-  const { events, isLoading } = useFilterEvents(filters);
+  const sectionCity = currentLocation?.city && currentLocation.city !== "All India" ? currentLocation.city : "";
+  const sectionState = currentLocation?.state && currentLocation.state !== "India" ? currentLocation.state : "";
+  const { events, isLoading } = useFilterEvents(filters, {
+    fetchAll: Boolean(sectionKey),
+    sectionKey,
+    city: sectionCity,
+    state: sectionState,
+    quickFilters,
+  });
 
   const savedEventsQuery = useQuery({
     queryKey: ["user-saved-events"],
@@ -291,7 +317,10 @@ export const useFilterPage = () => {
     (filters.ageGroups?.length || 0) +
     (filters.isFreeOnly ? 1 : 0) +
     (filters.minPrize > 0 ? 1 : 0) +
-    (filters.dateRange !== "all" ? 1 : 0);
+    (filters.dateRange !== "all" ? 1 : 0) +
+    quickFilters.filter(
+      (filter) => filter !== "all" && !(filter === "upcoming" && filters.dateRange === "upcoming")
+    ).length;
 
   const handleResetFilters = () => {
     const defaultState = currentLocation?.state && currentLocation.state !== "India" ? currentLocation.state : "";
@@ -309,9 +338,19 @@ export const useFilterPage = () => {
       minPrize: 0,
       dateRange: "all",
     });
+
+    if (searchParams.has("section")) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("section");
+      nextParams.delete("quickFilters");
+      setSearchParams(nextParams, { replace: true });
+    }
   };
 
   return {
+    sectionKey,
+    sectionHeading,
+    quickFilters,
     filters,
     setFilters,
     isMobileFilterOpen,

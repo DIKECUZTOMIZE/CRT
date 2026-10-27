@@ -9,6 +9,7 @@ import {
   Baby,
   Sparkles,
   ShieldAlert,
+  ChevronDown,
 } from "lucide-react";
 import { formatCurrency } from "../../../utils/eventDetailsUtils";
 import { useEffect, useState } from "react";
@@ -236,6 +237,7 @@ export const PrizeSection = ({ prizes = [] }) => {
   };
 
   const [activeTab, setActiveTab] = useState(getPreferredTab);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     if (activeTab >= sortedCategories.length) {
@@ -341,12 +343,26 @@ export const PrizeSection = ({ prizes = [] }) => {
     <section className="relative overflow-hidden space-y-3 rounded-xl border border-slate-800/80 bg-slate-900/90 p-3 shadow-xl backdrop-blur-xl sm:p-4">
       {/* SECTION HEADER */}
       <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-        <div className="flex items-center gap-1.5">
-          <Trophy className="h-3.5 w-3.5 shrink-0 text-amber-400" />
-          <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-200 sm:text-xs">
-            Prizes & Rewards
-          </h3>
-        </div>
+        <h3>
+          <button
+            type="button"
+            aria-expanded={isExpanded}
+            aria-controls="prizes-rewards-content"
+            onClick={() => setIsExpanded((expanded) => !expanded)}
+            className="flex items-center gap-1.5 text-left"
+          >
+            <Trophy className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-200 sm:text-xs">
+              Prizes & Rewards
+            </span>
+            <ChevronDown
+              aria-hidden="true"
+              className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform duration-200 ${
+                isExpanded ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+        </h3>
 
         {totalPrizeAmount > 0 && (
           <div className="flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5">
@@ -362,40 +378,40 @@ export const PrizeSection = ({ prizes = [] }) => {
         )}
       </div>
 
-      {/* DYNAMIC CATEGORY SLIDER / TABS */}
-      {sortedCategories.length > 1 && (
-        <div className="flex snap-x snap-mandatory gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-          {sortedCategories.map((category, idx) => {
-            const CategoryIcon = getCategoryIcon(
-              category.category,
-              category.isSoloOnly,
-            );
-            const isActive = idx === activeTab;
-            const categoryType = getCategoryGroupOrder(category.category);
+      <div id="prizes-rewards-content" hidden={!isExpanded}>
+        {/* DYNAMIC CATEGORY SLIDER / TABS */}
+        {sortedCategories.length > 1 && (
+          <div className="flex snap-x snap-mandatory gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            {sortedCategories.map((category, idx) => {
+              const CategoryIcon = getCategoryIcon(
+                category.category,
+                category.isSoloOnly,
+              );
+              const isActive = idx === activeTab;
 
-            const label = getCategoryTabLabel(category.category);
+              const label = getCategoryTabLabel(category.category);
 
-            return (
-              <button
-                key={category.id || idx}
-                type="button"
-                onClick={() => setActiveTab(idx)}
-                className={`flex shrink-0 snap-start items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-all duration-150 ${
-                  isActive
-                    ? "border-amber-500/40 bg-amber-500/10 text-amber-300 shadow-sm"
-                    : "border-slate-800/80 bg-slate-950/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
-                }`}
-              >
-                <CategoryIcon className="h-3 w-3" />
-                <span className="whitespace-nowrap">{label}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+              return (
+                <button
+                  key={category.id || idx}
+                  type="button"
+                  onClick={() => setActiveTab(idx)}
+                  className={`flex shrink-0 snap-start items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-all duration-150 ${
+                    isActive
+                      ? "border-amber-500/40 bg-amber-500/10 text-amber-300 shadow-sm"
+                      : "border-slate-800/80 bg-slate-950/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                  }`}
+                >
+                  <CategoryIcon className="h-3 w-3" />
+                  <span className="whitespace-nowrap">{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-      {/* CONTENT AREA */}
-      <div className="space-y-4">
+        {/* CONTENT AREA */}
+        <div className="space-y-4">
         {sortedCategories.map((category, categoryIndex) => {
           if (sortedCategories.length > 1 && categoryIndex !== activeTab) {
             return null;
@@ -472,13 +488,13 @@ export const PrizeSection = ({ prizes = [] }) => {
                   return (
                     <div
                       key={prize.id || prizeIndex}
-                      className={`relative flex flex-col justify-between overflow-hidden rounded-lg border p-2.5 transition-all duration-200 ${style.cardStyle}`}
+                      className={`relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 overflow-hidden rounded-lg border p-2 transition-all duration-200 sm:flex sm:flex-col sm:justify-between sm:gap-0 sm:p-2.5 ${style.cardStyle}`}
                     >
                       {/* CARD TOP ROW */}
-                      <div className="flex items-center justify-between gap-1.5">
-                        <div className="flex items-center gap-1 flex-wrap">
+                      <div className="col-start-1 row-start-1 flex min-w-0 items-center justify-between gap-1.5 sm:col-auto sm:row-auto">
+                        <div className="flex min-w-0 flex-wrap items-center gap-1">
                           <span
-                            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider ${style.badgeStyle}`}
+                            className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider ${style.badgeStyle}`}
                           >
                             {rankText}
                           </span>
@@ -504,21 +520,22 @@ export const PrizeSection = ({ prizes = [] }) => {
                       </div>
 
                       {/* AMOUNT DISPLAY */}
-                      <div className="my-1.5 space-y-0.5">
+                      <div className="col-start-2 row-start-1 my-0 min-w-0 max-w-full text-right sm:my-1.5 sm:text-left">
                         <p
-                          className={`text-base font-black tracking-tight ${style.amountColor} sm:text-lg`}
+                          className={`break-words [overflow-wrap:anywhere] text-base font-black tracking-tight ${style.amountColor} sm:text-lg`}
                         >
                           {amountFormatted}
                         </p>
-
+                      </div>
+                      <div className="col-span-2 min-w-0 space-y-0.5 sm:col-auto">
                         {prizeTitle && prizeTitle !== "Prize" && (
-                          <p className="text-[9px] font-medium leading-tight text-slate-300">
+                          <p className="break-words [overflow-wrap:anywhere] text-[9px] font-medium leading-tight text-slate-300">
                             {prizeTitle}
                           </p>
                         )}
 
                         {prize.note && (
-                          <p className="text-[9px] font-medium leading-tight text-slate-400">
+                          <p className="break-words [overflow-wrap:anywhere] text-[9px] font-medium leading-tight text-slate-400">
                             {prize.note}
                           </p>
                         )}
@@ -526,7 +543,7 @@ export const PrizeSection = ({ prizes = [] }) => {
 
                       {/* PERKS / INCENTIVES */}
                       {perksList.length > 0 && (
-                        <div className="mt-1 space-y-1 border-t border-slate-800/80 pt-1.5">
+                        <div className="col-span-2 mt-0 min-w-0 space-y-1 border-t border-slate-800/80 pt-1.5 sm:col-auto sm:mt-1">
                           <p className="text-[8px] font-extrabold uppercase tracking-wider text-slate-500">
                             Perks
                           </p>
@@ -534,10 +551,10 @@ export const PrizeSection = ({ prizes = [] }) => {
                             {perksList.map((perk, pIdx) => (
                               <li
                                 key={pIdx}
-                                className="flex items-start gap-1 text-[9px] leading-tight text-slate-300"
+                                className="flex min-w-0 items-start gap-1 text-[9px] leading-tight text-slate-300"
                               >
                                 <Star className="mt-0.5 h-2 w-2 shrink-0 text-emerald-400" />
-                                <span className="line-clamp-1">
+                                <span className="min-w-0 break-words [overflow-wrap:anywhere] sm:line-clamp-1">
                                   {perk.trim()}
                                 </span>
                               </li>
@@ -552,6 +569,7 @@ export const PrizeSection = ({ prizes = [] }) => {
             </div>
           );
         })}
+      </div>
       </div>
     </section>
   );

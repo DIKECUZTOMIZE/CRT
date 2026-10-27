@@ -67,7 +67,7 @@ export const EventDescription = ({ description }) => {
 
   return (
     <DetailAccordion
-      title="Event Description"
+      title="Description"
       icon={Sparkles}
       initialOpen={false}
       viewLabel="View details"

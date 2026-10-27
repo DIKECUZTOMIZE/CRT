@@ -1,19 +1,13 @@
 import { io } from "socket.io-client";
 
+import { resolveSocketConnectionAction } from "./socketConnectionPolicy.js";
+
 const DEFAULT_SOCKET_URL = "https://api.crtcompete.com";
 const SOCKET_URL = import.meta.env.VITE_API_URL || (
   typeof window !== "undefined" && ["localhost", "127.0.0.1"].includes(window.location.hostname)
     ? window.location.origin.replace(/:\d+$/, ":3000")
     : DEFAULT_SOCKET_URL
 );
-
-const hasAuthCookie = () => {
-  if (typeof document === "undefined") {
-    return false;
-  }
-
-  return /(?:^|;\s*)(userAccessToken|organizerAccessToken|adminAccessToken)=/.test(document.cookie);
-};
 
 export const socket = io(SOCKET_URL, {
   withCredentials: true,
@@ -22,22 +16,36 @@ export const socket = io(SOCKET_URL, {
   reconnectionAttempts: 0,
   reconnectionDelay: 0,
   timeout: 3000,
-  autoConnect: hasAuthCookie(),
+  autoConnect: false,
 });
 
-export const connectSocketIfAuthenticated = () => {
-  if (!hasAuthCookie()) {
-    if (socket.connected) {
-      socket.disconnect();
-    }
-    return false;
+let socketUserId = null;
+
+// Called only after the app has confirmed an authenticated user; the httpOnly cookie is sent by the handshake.
+export const connectSocketIfAuthenticated = (userId) => {
+  const normalizedUserId = userId ? String(userId) : "";
+  const action = resolveSocketConnectionAction({
+    userId: normalizedUserId,
+    socketActive: socket.active,
+    socketUserId,
+  });
+
+  if (action === "none") {
+    return Boolean(normalizedUserId);
   }
 
-  if (!socket.connected) {
-    socket.connect();
+  if (action === "reconnect") {
+    socket.disconnect();
   }
 
+  socketUserId = normalizedUserId;
+  socket.connect();
   return true;
+};
+
+export const disconnectSocket = () => {
+  socketUserId = null;
+  socket.disconnect();
 };
 
 export const joinUserRoom = () => {

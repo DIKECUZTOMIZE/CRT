@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 import { getOrganizerEventDetails } from "../api/organizerEventDetails.api.js";
 
@@ -131,6 +131,8 @@ const normalizeEventDetail = (event) => {
     title: event.title || "Untitled Event",
     status: normalizedStatus,
     statusReason: event.statusReason || "",
+    completionConfirmedAt: event.completionConfirmedAt,
+    results: event.results,
     category: event.category || "General",
     mode: event.eventMode || "Offline",
     viewsCount: Number(event.viewsCount ?? event.viewCount ?? 0) || 0,
@@ -238,8 +240,10 @@ export const useOrganizerEventDetails = (eventId) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const requestVersion = useRef(0);
 
   const fetchDetails = useCallback(async () => {
+    const version = ++requestVersion.current;
     try {
       setLoading(true);
       setError(null);
@@ -249,12 +253,16 @@ export const useOrganizerEventDetails = (eventId) => {
       }
 
       const eventData = await getOrganizerEventDetails(eventId);
+      if (version !== requestVersion.current) return;
       setEvent(normalizeEventDetail(eventData));
     } catch (err) {
+      if (version !== requestVersion.current) return;
       setError(err?.message || "Failed to load event details.");
       setEvent(null);
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) {
+        setLoading(false);
+      }
     }
   }, [eventId]);
 
@@ -266,11 +274,24 @@ export const useOrganizerEventDetails = (eventId) => {
       setError("Event ID is missing.");
       setEvent(null);
     }
+
+    return () => {
+      requestVersion.current += 1;
+    };
   }, [eventId, fetchDetails]);
 
   const toggleBookmark = () => {
     setIsBookmarked((prev) => !prev);
   };
+
+  const applyEvent = useCallback((eventData) => {
+    const normalizedEvent = normalizeEventDetail(eventData);
+    if (!normalizedEvent) return;
+    requestVersion.current += 1;
+    setEvent(normalizedEvent);
+    setError(null);
+    setLoading(false);
+  }, []);
 
   return {
     event,
@@ -279,5 +300,6 @@ export const useOrganizerEventDetails = (eventId) => {
     isBookmarked,
     toggleBookmark,
     refetch: fetchDetails,
+    applyEvent,
   };
 };

@@ -92,18 +92,18 @@ const DESKTOP_VISIBLE_ITEMS = 6;
 const MOBILE_INITIAL_VISIBLE_ITEMS = 2;
 
 const CompetitionSection = ({
+  sectionKey,
   title,
-  subtitle,
   competitions = [],
   savedIds = [],
   onToggleSave,
   onCompetitionClick,
   className = "",
   titleClassName = "",
+  quickFilters = [],
 }) => {
   const navigate = useNavigate();
   const sliderRef = useRef(null);
-  const [showAll, setShowAll] = useState(false);
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth < 768 : false);
 
   const itemsToDisplay = useMemo(() => {
@@ -130,14 +130,10 @@ const CompetitionSection = ({
     return () => mediaQuery.removeListener(updateMobileState);
   }, []);
 
-  useEffect(() => {
-    setShowAll(false);
-  }, [title, itemsToDisplay.length, isMobile]);
-
-  const visibleItems = useMemo(() => {
-    const maxVisible = showAll ? itemsToDisplay.length : Math.min(initialVisibleCount, itemsToDisplay.length);
-    return itemsToDisplay.slice(0, maxVisible);
-  }, [itemsToDisplay, showAll, initialVisibleCount]);
+  const visibleItems = useMemo(
+    () => itemsToDisplay.slice(0, initialVisibleCount),
+    [itemsToDisplay, initialVisibleCount],
+  );
 
   const handleSliderScroll = (direction) => {
     if (!sliderRef.current) return;
@@ -179,19 +175,28 @@ const CompetitionSection = ({
 
       <div className="mb-3 flex items-center justify-between gap-3 sm:mb-4">
         <div className="min-w-0">
-          <h2 className={`text-sm font-bold tracking-tight text-slate-900 sm:text-xl sm:text-white ${titleClassName}`.trim()}>
+          <h2 className={`text-sm font-bold tracking-tight text-slate-900 sm:text-xl ${titleClassName}`.trim()}>
             {title}
           </h2>
         </div>
 
         <div className="flex items-center gap-2">
-          {itemsToDisplay.length > 0 && (
+          {itemsToDisplay.length > 0 && sectionKey && (
             <button
               type="button"
-              onClick={() => setShowAll((current) => !current)}
+              onClick={() => {
+                const params = new URLSearchParams({ section: sectionKey });
+                const selectedFilters = quickFilters.filter(
+                  (filter) => filter && filter !== "all"
+                );
+                if (selectedFilters.length) {
+                  params.set("quickFilters", selectedFilters.join(","));
+                }
+                navigate(`/filter?${params.toString()}`);
+              }}
               className="inline-flex h-6 shrink-0 items-center justify-center rounded-full border border-emerald-200/80 bg-emerald-50/90 px-2.5 py-0 text-[3px] font-semibold uppercase tracking-[0.12em] text-emerald-700 shadow-sm transition-all duration-200 hover:border-emerald-300 hover:bg-[#ECFDF5] active:scale-[0.98] sm:h-7 sm:text-[6.5px]"
             >
-              {showAll ? "View Less" : "View All"}
+              View All
             </button>
           )}
 
@@ -252,11 +257,8 @@ const CompetitionSection = ({
             return (
               <div
                 key={id}
-                className="shrink-0 snap-start transition-all duration-300 ease-out sm:w-full sm:max-w-none sm:min-w-0 md:min-w-0"
+                className="shrink-0 snap-start transition-all duration-300 ease-out w-[calc(50%-0.25rem)] min-w-[calc(50%-0.25rem)] flex-[0_0_calc(50%-0.25rem)] sm:w-full sm:max-w-none sm:min-w-0 sm:flex-none md:min-w-0"
                 style={{
-                  width: "calc(50% - 0.25rem)",
-                  minWidth: "calc(50% - 0.25rem)",
-                  flex: "0 0 calc(50% - 0.25rem)",
                   animation: "cardFade 0.28s ease-out both",
                 }}
               >

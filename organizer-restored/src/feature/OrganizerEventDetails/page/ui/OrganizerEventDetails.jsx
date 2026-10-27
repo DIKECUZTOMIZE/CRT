@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useParams } from "react-router";
-import { ArrowLeft, ChevronRight, Settings2, Sparkles, Trash2, Trophy } from "lucide-react";
+import { ArrowLeft, ChevronRight, Link2, Settings2, Sparkles, Trash2, Trophy } from "lucide-react";
 
 import DetailAccordion from "../../../../shared/components/ui/DetailAccordion";
 
@@ -12,32 +12,57 @@ import { PrizeSection } from "../components/PrizeSection/PrizeSection.jsx";
 import { HowToJoin } from "../components/HowToJoin/HowToJoin.jsx";
 import { TermsAndConditions } from "../components/TermsAndConditions/TermsAndConditions.jsx";
 import { EntryFee } from "../components/EntryFee/EntryFee.jsx";
-import { OrganizerCard } from "../components/Organizer/OrganizerCard.jsx";
 import { OrganizerMembers } from "../components/Organizer/OrganizerMembers.jsx";
 
 import { useOrganizerEventDetailsPage } from "../../hook/useOrganizerEventDetailsPage.js";
+import {
+  getEventStatusSectionVisibility,
+  getOptionalEventSectionVisibility,
+} from "../../utils/eventSectionVisibility.js";
+import { formatCurrency } from "../../utils/eventDetailsUtils.jsx";
 
 const EVENT_TABS = [
-  { id: "overview-section", label: "Overview" },
-  { id: "prizes-section", label: "Prizes" },
-  { id: "results-section", label: "Winner" },
-  { id: "how-to-join-section", label: "How To Join" },
-  { id: "rules-section", label: "Rules" },
-  { id: "organizer-section", label: "Organizer" },
+  { id: "postpone-section", label: "Postpone Event", section: "postponed" },
+  { id: "cancel-section", label: "Cancel Event", section: "cancelled" },
+  { id: "overview-section", label: "Event Overview", section: "required" },
+  { id: "competition-overview-section", label: "Competition Overview", section: "required" },
+  { id: "description-section", label: "Description", section: "required" },
+  { id: "entry-section", label: "Entry", section: "entry" },
+  { id: "prizes-section", label: "Prizes", section: "prizes" },
+  { id: "results-section", label: "Winner", section: "required" },
+  { id: "how-to-join-section", label: "How To Join", section: "howToJoin" },
+  { id: "rules-section", label: "Rules", section: "rules" },
+  { id: "security-section", label: "Security", section: "security" },
+  { id: "organizer-section", label: "Organizer Team", section: "organizerTeam" },
+  { id: "maintenance-section", label: "Maintenance", section: "required" },
 ];
 
 export const OrganizerEventDetails = () => {
   const { id } = useParams();
+  const [sectionOpen, setSectionOpen] = useState({
+    eventInformation: false,
+    competitionOverview: false,
+    overview: false,
+    prizes: false,
+    winner: false,
+    howToJoin: false,
+    rules: false,
+    security: false,
+    organizer: false,
+    maintenance: false,
+  });
 
   const {
     event,
+    rawEvent,
     loading,
     error,
     isBookmarked,
     toggleBookmark,
     activeTab,
+    setActiveTab,
     statusDraft,
-    setStatusDraft,
+    handleStatusDraftChange,
     statusReason,
     setStatusReason,
     updatingStatus,
@@ -54,9 +79,8 @@ export const OrganizerEventDetails = () => {
     handleRemoveResultEntry,
     handleResultEntryChange,
     handleDeleteEvent,
-    isFinalCompleted,
     isOfficiallyCompleted,
-    canFinalizeCompletion,
+    canAnnounceResults,
     completingEvent,
     completionConfirmOpen,
     finalCancelWarningOpen,
@@ -65,10 +89,114 @@ export const OrganizerEventDetails = () => {
     resultEntries,
     resultFormOpen,
     setResultFormOpen,
-    scrollToSection,
   } = useOrganizerEventDetailsPage(id);
 
-  const showOfficialCompletionSection = Boolean(isFinalCompleted || isOfficiallyCompleted);
+  const showOfficialCompletionSection = Boolean(canAnnounceResults);
+  const optionalSections = getOptionalEventSectionVisibility(rawEvent);
+  const statusSections = getEventStatusSectionVisibility(rawEvent?.status);
+
+  useEffect(() => {
+    if (!event || typeof IntersectionObserver === "undefined") return undefined;
+
+    const sections = EVENT_TABS
+      .map(({ id: sectionId }) => document.getElementById(sectionId))
+      .filter(Boolean);
+
+    if (sections.length === 0) return undefined;
+
+    const updateActiveSection = () => {
+      const activationOffset = 136;
+      let activeSection =
+        sections.find((section) => section.id === "overview-section") || sections[0];
+
+      for (const section of sections) {
+        if (section.getBoundingClientRect().top > activationOffset) break;
+        activeSection = section;
+      }
+
+      setActiveTab(activeSection.id);
+    };
+
+    const observer = new IntersectionObserver(updateActiveSection, {
+      rootMargin: "-136px 0px 0px 0px",
+      threshold: 0,
+    });
+
+    sections.forEach((section) => observer.observe(section));
+    updateActiveSection();
+
+    return () => observer.disconnect();
+  }, [event, rawEvent, setActiveTab]);
+
+  const rawDescription = rawEvent?.description;
+  const hasDescriptionContent =
+    (typeof rawDescription === "string" && rawDescription.trim().length > 0) ||
+    (rawDescription &&
+      typeof rawDescription === "object" &&
+      !Array.isArray(rawDescription) &&
+      [
+        rawDescription.whatIsThis,
+        rawDescription.tagline,
+        rawDescription.about,
+        rawDescription.description,
+        rawDescription.summary,
+        rawDescription.text,
+        rawDescription.whatToPrepare,
+        rawDescription.prepare,
+        rawDescription.customSeatDetails,
+      ].some((value) => typeof value === "string" && value.trim().length > 0)) ||
+    Boolean(rawEvent?.tagline?.trim?.()) ||
+    Boolean(rawEvent?.customSeatDetails?.trim?.());
+  const winnerCategories = (Array.isArray(event?.results) ? event.results : []).reduce((categories, result) => {
+    const winnerName = String(result?.name || result?.winnerName || "").trim();
+    const position = String(result?.position || "").trim();
+    const rawCategory = String(result?.participation || result?.participationType || "").trim();
+    if (!winnerName || !position || !rawCategory) return categories;
+
+    const categoryValue = rawCategory.toLowerCase() === "solo"
+      ? "Solo"
+      : rawCategory.toLowerCase() === "team"
+        ? "Team"
+        : rawCategory;
+    const existingCategory = categories.find((category) => category.value === categoryValue);
+    const winner = { position, name: winnerName };
+
+    if (existingCategory) {
+      existingCategory.winners.push(winner);
+    } else {
+      categories.push({ value: categoryValue, winners: [winner] });
+    }
+
+    return categories;
+  }, []);
+  const [activeWinnerCategory, setActiveWinnerCategory] = useState("");
+  const selectedWinnerCategory =
+    winnerCategories.find((category) => category.value === activeWinnerCategory) || winnerCategories[0];
+
+  const handleTabClick = (tabId) => {
+    setActiveTab(tabId);
+    setSectionOpen((prev) => ({
+      ...prev,
+      eventInformation: tabId === "overview-section" ? true : prev.eventInformation,
+      competitionOverview:
+        tabId === "overview-section" || tabId === "competition-overview-section"
+          ? true
+          : prev.competitionOverview,
+      overview: tabId === "overview-section" ? true : prev.overview,
+      prizes: tabId === "prizes-section" ? true : prev.prizes,
+      winner: tabId === "results-section" ? true : prev.winner,
+      howToJoin: tabId === "how-to-join-section" ? true : prev.howToJoin,
+      rules: tabId === "rules-section" ? true : prev.rules,
+      security: tabId === "security-section" ? true : prev.security,
+      organizer: tabId === "organizer-section" ? true : prev.organizer,
+      maintenance: tabId === "maintenance-section" ? true : prev.maintenance,
+    }));
+
+    const element = document.getElementById(tabId);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
   if (loading) {
     return (
@@ -149,10 +277,15 @@ export const OrganizerEventDetails = () => {
         />
 
         <div className="sticky top-4 z-40 flex items-center gap-2 overflow-x-auto rounded-xl border border-slate-800/80 bg-slate-950/80 p-1.5 backdrop-blur-xl scrollbar-none no-scrollbar">
-          {EVENT_TABS.map((tab) => (
+          {EVENT_TABS.filter((tab) =>
+            tab.section === "required" ||
+            optionalSections[tab.section] ||
+            statusSections[tab.section]
+          ).map((tab) => (
             <button
               key={tab.id}
-              onClick={() => scrollToSection(tab.id)}
+              onClick={() => handleTabClick(tab.id)}
+              aria-current={activeTab === tab.id ? "location" : undefined}
               className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
                 activeTab === tab.id
                   ? "border border-emerald-500/30 bg-emerald-500/20 text-emerald-400"
@@ -164,33 +297,124 @@ export const OrganizerEventDetails = () => {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          <div className="space-y-6 lg:col-span-2">
-            <div id="overview-section">
-              <EventOverview meta={event.meta} overview={event.overview} />
+        <div className="space-y-6">
+          <div className="space-y-6">
+            {statusSections.postponed && (
+              <div
+                id="postpone-section"
+                className="scroll-mt-32 rounded-2xl border border-violet-500/25 bg-violet-500/10 p-4 shadow-lg ring-1 ring-inset ring-violet-500/20"
+              >
+                <h2 className="text-sm font-bold text-violet-200">Postpone Event</h2>
+                <p className="mt-2 break-words text-sm leading-relaxed text-violet-100">
+                  {event.statusReason || "This event has been postponed."}
+                </p>
+              </div>
+            )}
+
+            {statusSections.cancelled && (
+              <div
+                id="cancel-section"
+                className="scroll-mt-32 rounded-2xl border border-rose-500/25 bg-rose-500/10 p-4 shadow-lg ring-1 ring-inset ring-rose-500/20"
+              >
+                <h2 className="text-sm font-bold text-rose-200">Cancel Event</h2>
+                <p className="mt-2 break-words text-sm leading-relaxed text-rose-100">
+                  {event.statusReason || "This event has been cancelled."}
+                </p>
+              </div>
+            )}
+
+            <div id="overview-section" className="scroll-mt-32">
+              <EventOverview
+                meta={event.meta}
+                overview={event.overview}
+                open={sectionOpen.eventInformation}
+                onToggle={(next) => setSectionOpen((prev) => ({ ...prev, eventInformation: next }))}
+              />
+              {event.onlineLink && (
+                <DetailAccordion
+                  title="Meeting Details"
+                  icon={Link2}
+                  initialOpen={false}
+                  viewLabel="View details"
+                  hideLabel="Hide details"
+                  iconClassName="panel-icon--emerald"
+                  bodyClassName="panel-body--stacked"
+                >
+                  <div className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4">
+                    <p className="text-xs font-semibold text-slate-400">Meeting Link</p>
+                    <a
+                      href={event.onlineLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 block break-all text-sm font-medium text-emerald-400 underline decoration-emerald-500/40 underline-offset-4 hover:text-emerald-300"
+                    >
+                      {event.onlineLink}
+                    </a>
+                  </div>
+                </DetailAccordion>
+              )}
             </div>
 
-            <CompetitionDetails details={event.competitionDetails} />
-
-            <EventDescription description={event.description} />
-      <EntryFee entryFee={event.entryFee} />
-
-            <div id="prizes-section">
-              <PrizeSection prizes={event.prizes} />
+            <div id="competition-overview-section" className="scroll-mt-32">
+              <CompetitionDetails
+                details={event.competitionDetails}
+                open={sectionOpen.competitionOverview}
+                onToggle={(next) => setSectionOpen((prev) => ({ ...prev, competitionOverview: next }))}
+              />
             </div>
 
-            <div id="results-section">
+            <div id="description-section" className="scroll-mt-32">
+              {hasDescriptionContent ? (
+                <EventDescription description={event.description} />
+              ) : (
+                <DetailAccordion
+                  title="Description"
+                  icon={Sparkles}
+                  initialOpen={false}
+                  viewLabel="View details"
+                  hideLabel="Hide details"
+                  iconClassName="panel-icon--emerald"
+                  bodyClassName="panel-body--stacked"
+                >
+                  <p className="text-sm text-slate-400">No event description added yet.</p>
+                </DetailAccordion>
+              )}
+            </div>
+
+            {optionalSections.entry && (
+              <div id="entry-section" className="scroll-mt-32">
+                <EntryFee entryFee={event.entryFee} />
+              </div>
+            )}
+
+            {optionalSections.prizes && (
+              <div id="prizes-section" className="scroll-mt-32">
+                {Number(rawEvent?.totalPrizePool) > 0 && (
+                  <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4">
+                    <span className="text-sm font-semibold text-amber-200">Total Prize Pool</span>
+                    <span className="text-sm font-black text-amber-300">
+                      {formatCurrency(Number(rawEvent.totalPrizePool))}
+                    </span>
+                  </div>
+                )}
+                <PrizeSection prizes={event.prizes} />
+              </div>
+            )}
+
+            <div id="results-section" className="scroll-mt-32">
               <DetailAccordion
                 title="Winner"
                 icon={Trophy}
                 initialOpen={false}
+                open={sectionOpen.winner}
+                onToggle={(next) => setSectionOpen((prev) => ({ ...prev, winner: next }))}
                 viewLabel="View details"
                 hideLabel="Hide details"
                 iconClassName="panel-icon--emerald"
                 bodyClassName="panel-body--stacked"
               >
                 <div className="rounded-2xl border border-emerald-500/20 bg-slate-900/90 p-3 shadow-xl sm:p-4">
-                  {Array.isArray(event.results) && event.results.length > 0 ? (
+                  {winnerCategories.length > 0 ? (
                     <>
                       <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-700/80 pb-3">
                         <div className="flex items-center gap-3">
@@ -206,38 +430,53 @@ export const OrganizerEventDetails = () => {
                         <div className="flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1">
                           <Sparkles className="h-3 w-3 text-emerald-400" />
                           <span className="text-[9px] font-extrabold uppercase tracking-[0.12em] text-emerald-300">
-                            {event.results.length} {event.results.length === 1 ? "Winner" : "Winners"}
+                            {winnerCategories.reduce((total, category) => total + category.winners.length, 0)} Winners
                           </span>
                         </div>
                       </div>
 
-                      <div className="space-y-3">
-                        {event.results.map((result, index) => (
-                          <div
-                            key={`${result?.position || 'winner'}-${result?.name || result?.winnerName || 'result'}-${index}`}
-                            className="rounded-xl border border-slate-700/80 bg-slate-950/70 p-3"
-                          >
-                            <div className="mb-2 flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2">
-                                <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
-                                  <Trophy className="h-3.5 w-3.5" />
-                                </div>
-                                <div>
-                                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                                    {result?.position || `Position ${index + 1}`}
-                                  </p>
-                                  <p className="text-xs font-medium text-slate-300">
-                                    {result?.participation || result?.participationType || "Solo"}
-                                  </p>
-                                </div>
+                      <div className="space-y-4">
+                        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Winner categories">
+                          {winnerCategories.map((category) => (
+                            <button
+                              key={category.value}
+                              type="button"
+                              role="tab"
+                              aria-selected={selectedWinnerCategory?.value === category.value}
+                              onClick={() => setActiveWinnerCategory(category.value)}
+                              className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                                selectedWinnerCategory?.value === category.value
+                                  ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+                                  : "border-slate-700 bg-slate-950/70 text-slate-300 hover:border-slate-600"
+                              }`}
+                            >
+                              {category.value === "Team"
+                                ? "Group / Team"
+                                : category.value}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="space-y-3" role="tabpanel">
+                          {selectedWinnerCategory?.winners.map((winner, index) => (
+                            <div
+                              key={`${winner.position}-${winner.name}-${index}`}
+                              className="flex items-center gap-3 rounded-xl border border-slate-700/80 bg-slate-950/70 p-3"
+                            >
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
+                                <Trophy className="h-4 w-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                                  {winner.position}
+                                </p>
+                                <p className="truncate text-base font-bold text-white sm:text-lg">
+                                  {winner.name}
+                                </p>
                               </div>
                             </div>
-
-                            <p className="text-base font-bold text-white sm:text-lg">
-                              {result?.name || result?.winnerName || "Winner"}
-                            </p>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     </>
                   ) : (
@@ -263,54 +502,60 @@ export const OrganizerEventDetails = () => {
               </DetailAccordion>
             </div>
 
-            <div id="how-to-join-section">
-              <HowToJoin steps={event.howToJoin} />
-            </div>
-
-            <div id="rules-section">
-              <TermsAndConditions terms={event.terms} initialOpen={false} />
-            </div>
-
-            {event.securityRequirements && event.securityRequirements.length > 0 && (
-              <TermsAndConditions
-                terms={event.securityRequirements}
-                title="Security & Compliance"
-                countLabel="Requirements"
-                toggleLabel="requirements"
-                initialOpen={false}
-              />
+            {optionalSections.howToJoin && (
+              <div id="how-to-join-section" className="scroll-mt-32">
+                <HowToJoin
+                  steps={event.howToJoin}
+                  open={sectionOpen.howToJoin}
+                  onToggle={(next) => setSectionOpen((prev) => ({ ...prev, howToJoin: next }))}
+                />
+              </div>
             )}
+
+            {optionalSections.rules && (
+              <div id="rules-section" className="scroll-mt-32">
+                <TermsAndConditions
+                  terms={event.terms}
+                  initialOpen={false}
+                  open={sectionOpen.rules}
+                  onToggle={(next) => setSectionOpen((prev) => ({ ...prev, rules: next }))}
+                />
+              </div>
+            )}
+
+            {optionalSections.security && (
+              <div id="security-section" className="scroll-mt-32">
+                <TermsAndConditions
+                  terms={event.securityRequirements}
+                  title="Security & Compliance"
+                  countLabel="Requirements"
+                  toggleLabel="requirements"
+                  initialOpen={false}
+                  open={sectionOpen.security}
+                  onToggle={(next) => setSectionOpen((prev) => ({ ...prev, security: next }))}
+                />
+              </div>
+            )}
+
+            {optionalSections.organizerTeam && (
+              <div id="organizer-section" className="scroll-mt-32">
+                <OrganizerMembers
+                  members={event.organizer?.members}
+                  open={sectionOpen.organizer}
+                  onToggle={(next) => setSectionOpen((prev) => ({ ...prev, organizer: next }))}
+                />
+              </div>
+            )}
+
           </div>
 
-          <aside className="space-y-6">
-            {((event.status === "cancelled" ||
-              event.status === "canceled" ||
-              event.status === "cancel" ||
-              event.status === "postponed" ||
-              event.status === "postpond" ||
-              event.status === "pospond") &&
-              event.statusReason) && (
-                <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4 shadow-lg ring-1 ring-inset ring-amber-500/20">
-                  <div className="mb-2 flex items-center gap-2">
-                    <div className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
-                      {event.status === "postponed" || event.status === "postpond" || event.status === "pospond"
-                        ? "Postponed"
-                        : "Cancelled"}
-                    </p>
-                  </div>
-                  <p className="break-words text-sm font-semibold leading-relaxed text-amber-50">
-                    {event.status === "postponed" || event.status === "postpond" || event.status === "pospond"
-                      ? `Postponed: ${event.statusReason}`
-                      : `Cancelled: ${event.statusReason}`}
-                  </p>
-                </div>
-              )}
-
+          <div id="maintenance-section" className="scroll-mt-32 space-y-6">
             <DetailAccordion
               title="Maintenance"
               icon={Settings2}
               initialOpen={false}
+              open={sectionOpen.maintenance}
+              onToggle={(next) => setSectionOpen((prev) => ({ ...prev, maintenance: next }))}
               viewLabel="View details"
               hideLabel="Hide details"
               iconClassName="panel-icon--emerald"
@@ -329,7 +574,8 @@ export const OrganizerEventDetails = () => {
 
                   <select
                     value={statusDraft}
-                    onChange={(event) => setStatusDraft(event.target.value)}
+                    onChange={(changeEvent) => handleStatusDraftChange(changeEvent.target.value)}
+                    disabled={isOfficiallyCompleted || canAnnounceResults}
                     className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 outline-none transition focus:border-emerald-500"
                   >
                     <option value="upcoming">Upcoming</option>
@@ -362,7 +608,7 @@ export const OrganizerEventDetails = () => {
                   <button
                     type="button"
                     onClick={handleStatusUpdate}
-                    disabled={updatingStatus || !statusDraft}
+                    disabled={updatingStatus || !statusDraft || isOfficiallyCompleted || canAnnounceResults}
                     className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:border-emerald-500 hover:text-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                   >
                     {updatingStatus ? "Updating..." : "Update Status"}
@@ -371,6 +617,7 @@ export const OrganizerEventDetails = () => {
                   <button
                     type="button"
                     onClick={handleEditEvent}
+                    disabled={isOfficiallyCompleted || canAnnounceResults}
                     className="w-full rounded-xl bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                   >
                     Edit in Form
@@ -456,7 +703,7 @@ export const OrganizerEventDetails = () => {
                         <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-end">
                           <button
                             type="button"
-                            onClick={() => setFinalCancelWarningOpen(false)}
+                            onClick={cancelCompletionConfirmation}
                             className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-600 hover:text-white"
                           >
                             No
@@ -591,7 +838,7 @@ export const OrganizerEventDetails = () => {
                   <button
                     type="button"
                     onClick={handleDeleteEvent}
-                    disabled={deletingEvent}
+                    disabled={deletingEvent || isOfficiallyCompleted}
                     className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -600,25 +847,7 @@ export const OrganizerEventDetails = () => {
                 </div>
               </div>
             </DetailAccordion>
-
-       
-            <div id="organizer-section">
-              <OrganizerCard organizer={event.organizer} />
-            </div>
-
-            <OrganizerMembers members={event.organizer?.members} />
-
-            {/* <PaymentNotice /> */}
-
-            {/* <div id="contact-section">
-              <ContactOrganizer
-                whatsappNumber={
-                  event.organizer?.whatsappNumber || event.organizer?.phone
-                }
-                onAskQuestion={handleAskQuestion}
-              />
-            </div> */}
-          </aside>
+          </div>
         </div>
       </div>
     </main>

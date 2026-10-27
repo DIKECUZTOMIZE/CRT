@@ -464,16 +464,8 @@ export const CompetitionCard = ({
           </div>
         )}
 
-        <div className="relative z-20 mt-0.5 flex w-full flex-nowrap items-center justify-between gap-2 pb-1 sm:hidden">
-          <button
-            type="button"
-            onClick={handleViewClick}
-            className="inline-flex min-h-[1.6rem] flex-shrink-0 items-center justify-center gap-0.5 self-center rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-1.5 py-0.75 text-[8px] font-bold text-white shadow-[0_8px_16px_rgba(16,185,129,0.22)] ring-1 ring-emerald-600/30 transition-all duration-200 hover:from-emerald-600 hover:to-teal-700 active:scale-[0.99]"
-          >
-            <span className="text-[9px]">View Details</span> <span aria-hidden="true" className="text-[9px]">→</span>
-          </button>
-
-          <div className="ml-auto inline-flex shrink-0 items-center gap-1.5">
+        <div className="relative z-20 mt-0.5 flex w-full min-w-0 flex-nowrap items-center justify-between gap-2 pb-1">
+          <div className="inline-flex min-w-0 shrink items-center gap-1.5">
             {hasEntryFee && (
               <div className="inline-flex shrink-0 items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.75 text-[9px] font-bold text-slate-800 shadow-[0_2px_6px_rgba(15,23,42,0.08)]">
                 <span className="text-[7px] font-semibold uppercase tracking-[0.08em] text-slate-500">Entry</span>
@@ -483,15 +475,15 @@ export const CompetitionCard = ({
               </div>
             )}
           </div>
-        </div>
 
-        <button
-          type="button"
-          onClick={handleViewClick}
-          className="mt-0.5 hidden min-h-[1.8rem] items-center justify-center gap-1 self-start rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-2.5 py-1 text-[8.5px] font-semibold text-white shadow-[0_10px_20px_rgba(16,185,129,0.22)] transition-all duration-200 hover:from-emerald-600 hover:to-teal-700 active:scale-[0.99] sm:inline-flex sm:min-h-[1.9rem] sm:text-[9.5px]"
-        >
-          View Details <span aria-hidden="true">→</span>
-        </button>
+          <button
+            type="button"
+            onClick={handleViewClick}
+            className="ml-auto inline-flex min-h-[1.6rem] flex-shrink-0 items-center justify-center gap-0.5 self-center rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-1.5 py-0.75 text-[8px] font-bold text-white shadow-[0_8px_16px_rgba(16,185,129,0.22)] ring-1 ring-emerald-600/30 transition-all duration-200 hover:from-emerald-600 hover:to-teal-700 active:scale-[0.99]"
+          >
+            <span className="text-[9px]">View Details</span> <span aria-hidden="true" className="text-[9px]">→</span>
+          </button>
+        </div>
       </div>
     </article>
   );

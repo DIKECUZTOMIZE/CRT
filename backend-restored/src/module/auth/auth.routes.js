@@ -129,5 +129,5 @@ authRouter.post(
     authMiddleware,
     asyncHandle(toggleSavedEventController)
 );
-
+  console.log("admin data");
 export default authRouter;

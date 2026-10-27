@@ -68,7 +68,20 @@ const normalizeEventDetail = (event, currentUserId = null) => {
   const normalizedStatus = typeof event.status === "string" ? event.status.toLowerCase() : "";
   const organizerContact = event.organizerContact || {};
   const participation = event.participation || {};
-  const entries = Array.isArray(event.entries) ? event.entries.filter(Boolean) : [];
+  const entries = Array.isArray(event.entries)
+    ? event.entries.filter((entry) =>
+        entry &&
+        [
+          entry.customName,
+          entry.category,
+          entry.name,
+          entry.participationType,
+          entry.type,
+          entry.price,
+          entry.amount,
+        ].some((value) => value !== undefined && value !== null && String(value).trim() !== "")
+      )
+    : [];
   const scheduleEntries = Array.isArray(event.schedules)
     ? event.schedules.filter(Boolean).map((item) => ({
         label: item.customType || item.type || "Schedule",
@@ -99,22 +112,40 @@ const normalizeEventDetail = (event, currentUserId = null) => {
   (Array.isArray(event.prizes) ? event.prizes : []).forEach((prize) => {
     if (!prize || typeof prize !== "object") return;
 
-    const categoryName = String(prize.category || prize.customTitle || "General").trim() || "General";
+    const hasPrizeData = [
+      prize.category,
+      prize.customTitle,
+      prize.position,
+      prize.reward,
+    ].some((value) => typeof value === "string" && value.trim()) ||
+      (prize.amount !== undefined &&
+        prize.amount !== null &&
+        (typeof prize.amount !== "string" || prize.amount.trim() !== ""));
+    if (!hasPrizeData) return;
+
+    const categoryName = String(prize.category || "").trim();
     const currentGroup = groupedPrizeMap.get(categoryName) || {
       category: categoryName,
-      description: prize.reward || prize.customTitle || "",
+      description: "",
       prizes: [],
       isSoloOnly: /solo|individual|single/i.test(categoryName),
     };
 
-    currentGroup.prizes.push({
-      rank: prize.position || "Prize",
-      customTitle: prize.customTitle || prize.title || prize.name || "",
-      amount: Number(prize.amount || 0),
+    const normalizedPrize = {
       currency: "INR",
-      perks: prize.reward || "",
-      note: prize.reward || "",
-    });
+      perks: typeof prize.reward === "string" ? prize.reward : "",
+    };
+    if (typeof prize.position === "string" && prize.position.trim()) {
+      normalizedPrize.rank = prize.position;
+    }
+    if (typeof prize.customTitle === "string" && prize.customTitle.trim()) {
+      normalizedPrize.customTitle = prize.customTitle;
+    }
+    if (typeof prize.amount === "number" && Number.isFinite(prize.amount)) {
+      normalizedPrize.amount = prize.amount;
+    }
+
+    currentGroup.prizes.push(normalizedPrize);
 
     groupedPrizeMap.set(categoryName, currentGroup);
   });
@@ -125,34 +156,55 @@ const normalizeEventDetail = (event, currentUserId = null) => {
 
   const entryCategories = entries.map((entry, index) => {
     const participationType = entry.participationType || entry.type || "";
-    const baseCategory = entry.customName || entry.category || entry.name || "Entry";
-    const label = participationType
-      ? `${participationType} ${baseCategory === "Entry" ? "Entry" : baseCategory}`
-      : baseCategory;
+    const baseCategory = entry.customName || entry.category || entry.name || "";
+    const label = [participationType, baseCategory].filter(Boolean).join(" ");
     const amount = Number(entry.price ?? entry.amount ?? 0);
 
-    return {
+    const normalizedEntry = {
       id: entry._id || entry.id || `${label}-${index}`,
       label,
-      category: participationType || entry.category || entry.participationType || label,
+      category: entry.category || entry.customName || entry.name || participationType || "",
       name: label,
-      amount,
       currency: "INR",
-      description: participationType
-        ? `${participationType} participation fee`
-        : entry.category
-          ? `${entry.category} fee`
-          : "Participation fee",
-      isPopular: false,
     };
+    const savedAmount = entry.price ?? entry.amount;
+    if (savedAmount !== undefined && savedAmount !== null && savedAmount !== "") {
+      normalizedEntry.amount = amount;
+    }
+    if (typeof entry.description === "string" && entry.description.trim()) {
+      normalizedEntry.description = entry.description;
+    }
+    return normalizedEntry;
   });
 
   const rawEntryFee = event.entryFee || {};
   const directEntryFeeAmount =
     Number(rawEntryFee.amount ?? rawEntryFee.price ?? event.fee ?? event.entryFeeAmount ?? 0) || 0;
   const explicitFree = Boolean(event.isFree || rawEntryFee.isFree);
-  const feeEntries = entryCategories.length > 0 ? entryCategories :
-    (Array.isArray(rawEntryFee.categories) ? rawEntryFee.categories.filter(Boolean) : []);
+  const hasEntryFeeValue = (value) =>
+    value !== undefined &&
+    value !== null &&
+    (typeof value !== "string" || value.trim() !== "");
+  const rawFeeCategories = Array.isArray(rawEntryFee.categories)
+    ? rawEntryFee.categories.filter((category) =>
+        category &&
+        typeof category === "object" &&
+        [
+          category.label,
+          category.name,
+          category.category,
+          category.amount,
+        ].some((value) => value !== undefined && value !== null && String(value).trim() !== "")
+      )
+    : [];
+  const hasEntryFeeData =
+    entries.length > 0 ||
+    [rawEntryFee.amount, rawEntryFee.price, event.fee, event.entryFeeAmount]
+      .some(hasEntryFeeValue) ||
+    rawFeeCategories.length > 0 ||
+    event.isFree === true ||
+    rawEntryFee.isFree === true;
+  const feeEntries = entryCategories.length > 0 ? entryCategories : rawFeeCategories;
   const feeAmount = feeEntries.length > 0 ? Number(feeEntries[0]?.amount ?? directEntryFeeAmount ?? 0) : directEntryFeeAmount;
   const isFree = explicitFree || (feeEntries.length === 0 && feeAmount === 0 && !rawEntryFee.categories?.length)
     || (feeEntries.length > 0 && feeEntries.every((entry) => Number(entry.amount || 0) === 0));
@@ -180,6 +232,8 @@ const normalizeEventDetail = (event, currentUserId = null) => {
     competitionDetails.teamSize = `${minTeamSize} - ${maxTeamSize} Members`;
   } else if (hasTeamConfig && minTeamSize > 0) {
     competitionDetails.teamSize = `${minTeamSize}+ Members`;
+  } else if (hasTeamConfig && maxTeamSize > 0) {
+    competitionDetails.teamSize = `Up to ${maxTeamSize} Members`;
   }
 
   if (event.category) {
@@ -209,6 +263,59 @@ const normalizeEventDetail = (event, currentUserId = null) => {
   const statusReason = typeof event.statusReason === "string"
     ? event.statusReason.trim()
     : "";
+  const results = Array.isArray(event.results)
+    ? event.results
+        .filter((result) => result && typeof (result.winnerName || result.name) === "string" &&
+          (result.winnerName || result.name).trim())
+        .map((result) => ({
+          participationType: result.participationType || result.participation || "",
+          position: result.position || "",
+          winnerName: result.winnerName || result.name,
+        }))
+    : [];
+  const howToJoin = Array.isArray(event.participationSteps)
+    ? event.participationSteps
+        .map((step) => ({
+          ...(typeof step?.title === "string" && step.title.trim() ? { title: step.title } : {}),
+          text: typeof step === "string" ? step : typeof step?.text === "string" ? step.text : "",
+        }))
+        .filter((step) => step.text.trim())
+    : [];
+  const terms = Array.isArray(event.eventRules)
+    ? event.eventRules
+        .map((rule) => typeof rule === "string"
+          ? { text: rule }
+          : {
+              ...(typeof rule?.type === "string" && rule.type.trim() ? { type: rule.type } : {}),
+              text: typeof rule?.text === "string" ? rule.text : "",
+            })
+        .filter((rule) => rule.text.trim())
+    : [];
+  const securityRequirements = Array.isArray(event.securityRequirements)
+    ? event.securityRequirements
+        .map((requirement) => ({
+          ...(typeof requirement?.type === "string" && requirement.type.trim()
+            ? { type: requirement.type }
+            : {}),
+          text: typeof requirement === "string"
+            ? requirement
+            : typeof requirement?.text === "string"
+              ? requirement.text
+              : typeof requirement?.rule === "string"
+                ? requirement.rule
+                : "",
+        }))
+        .filter((requirement) => requirement.text.trim())
+    : [];
+  const customFields = Array.isArray(event.customFields)
+    ? event.customFields
+        .filter((field) => typeof field?.fieldName === "string" && field.fieldName.trim())
+        .map((field) => ({
+          fieldName: field.fieldName,
+          ...(typeof field.fieldType === "string" ? { fieldType: field.fieldType } : {}),
+          ...(typeof field.isRequired === "boolean" ? { isRequired: field.isRequired } : {}),
+        }))
+    : [];
 
   return {
     id: event._id || event.id,
@@ -228,15 +335,23 @@ const normalizeEventDetail = (event, currentUserId = null) => {
       whatsappNumber: organizerContact.whatsapp || "",
       phone: organizerContact.whatsapp || "",
       email: organizerContact.email || "",
-      members: Array.isArray(event.organizerTeam) ? event.organizerTeam.map((member) => ({
-        name: member.name || "",
-        role: member.role || "",
-        image: member.image || "",
-      })) : [],
+      members: Array.isArray(event.organizerTeam)
+        ? event.organizerTeam
+            .filter((member) => member && typeof member === "object")
+            .map((member) => ({
+              name: member.name || "",
+              role: member.role || "",
+              contact: member.contact || "",
+            }))
+            .filter((member) => [member.name, member.role, member.contact].some((value) => value.trim()))
+        : [],
     },
     meta: {
       status: normalizedStatus,
-      seatsAvailable: event.totalSeats || 0,
+      statusReason,
+      seatsAvailable: event.totalSeats ?? null,
+      seatAvailability: event.seatAvailability || "",
+      customSeatDetails: event.customSeatDetails || "",
       location: normalizeLocationValue(
         event.location,
         event.venueAddress,
@@ -255,7 +370,9 @@ const normalizeEventDetail = (event, currentUserId = null) => {
     },
     overview: {
       status: normalizedStatus,
-      seatsAvailable: event.totalSeats || 0,
+      seatsAvailable: event.totalSeats ?? null,
+      seatAvailability: event.seatAvailability || "",
+      customSeatDetails: event.customSeatDetails || "",
       location: normalizeLocationValue(
         event.location,
         event.venueAddress,
@@ -272,27 +389,15 @@ const normalizeEventDetail = (event, currentUserId = null) => {
       registrationDeadline: event.registrationEnd || "",
       scheduleItems: scheduleEntries,
     },
+    onlineLink: typeof event.onlineLink === "string" ? event.onlineLink.trim() : "",
     competitionDetails,
     prizes,
-    results: Array.isArray(event.results)
-      ? event.results.map((result) => ({
-          participationType: result?.participationType || "Solo",
-          position: result?.position || "1st",
-          winnerName: result?.winnerName || result?.name || "",
-        }))
-      : [],
-    howToJoin: Array.isArray(event.participationSteps) && event.participationSteps.length > 0
-      ? event.participationSteps.map((step) => ({ text: step.text || step }))
-      : [],
-    terms: Array.isArray(event.eventRules) ? event.eventRules.map((rule) => ({ text: rule.text || rule })) : [],
-    securityRequirements: Array.isArray(event.securityRequirements)
-      ? event.securityRequirements.map((requirement) => ({
-          type: requirement.type && requirement.type.trim().length > 0
-            ? requirement.type
-            : "Security Requirement",
-          text: requirement.text || requirement.rule || "",
-        }))
-      : [],
+    results,
+    howToJoin,
+    terms,
+    securityRequirements,
+    customFields,
+    hasEntryFeeData,
     entryFee: {
       isFree,
       amount: feeAmount,

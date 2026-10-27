@@ -12,12 +12,9 @@ import {
 
 import DetailAccordion from "../../../../../shared/components/ui/DetailAccordion";
 
-import {
-  formatEventDate,
-  formatRegistrationWindow,
-} from "../../../utils/eventDetailsUtils";
+import "../../../utils/eventDetailsUtils";
 
-export const EventOverview = ({ meta, overview }) => {
+export const EventOverview = ({ meta, overview, open = false, onToggle }) => {
   const data = meta || overview;
 
   if (!data || typeof data !== "object") {
@@ -35,6 +32,29 @@ export const EventOverview = ({ meta, overview }) => {
       month: "short",
       year: "numeric",
     }).format(date);
+  };
+
+  const cleanLocationDisplayValue = (value) => {
+    if (!value || !String(value).trim()) return "";
+
+    const parts = String(value)
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    if (parts.length <= 1) return String(value).trim();
+
+    const deduped = [];
+    const seen = new Set();
+
+    for (const part of parts) {
+      const normalized = part.toLowerCase();
+      if (seen.has(normalized)) continue;
+      seen.add(normalized);
+      deduped.push(part);
+    }
+
+    return deduped.join(", ");
   };
 
   const getStatusBadge = (statusStr) => {
@@ -85,6 +105,17 @@ export const EventOverview = ({ meta, overview }) => {
     };
   };
 
+  const seatAvailability = String(data.seatAvailability || "").trim().toLowerCase();
+  const seatAvailabilityText =
+    seatAvailability === "not available"
+      ? "Sold out"
+      : seatAvailability === "other"
+        ? data.customSeatDetails || "Custom"
+        : seatAvailability === "available"
+          ? "Available"
+          : "";
+  const seatCount = Number(data.seatsAvailable);
+
   const mainStats = [
     {
       icon: CheckCircle2,
@@ -102,19 +133,26 @@ export const EventOverview = ({ meta, overview }) => {
     },
     {
       icon: Users,
+      label: "Registration Availability",
+      type: "text",
+      value: seatAvailabilityText,
+      show: Boolean(seatAvailabilityText),
+    },
+    {
+      icon: Users,
       label: "Seats Available",
       type: "seats",
-      value:
-        data.seatsAvailable !== undefined && data.seatsAvailable !== null
-          ? `${data.seatsAvailable} Seats`
-          : null,
-      show: data.seatsAvailable !== undefined && data.seatsAvailable !== null,
+      value: Number.isFinite(seatCount) && seatCount > 0 ? `${seatCount} Seats` : null,
+      show:
+        Number.isFinite(seatCount) &&
+        seatCount > 0 &&
+        (seatAvailability === "available" || !seatAvailability),
     },
     {
       icon: MapPin,
       label: "Location / Venue",
       type: "text",
-      value: data.location,
+      value: cleanLocationDisplayValue(data.location),
       show: Boolean(data.location),
     },
   ].filter((item) => item.show);
@@ -182,9 +220,11 @@ export const EventOverview = ({ meta, overview }) => {
 
   return (
     <DetailAccordion
-      title="Event Information"
+      title="Event Overview"
       icon={Sparkles}
       initialOpen={false}
+      open={open}
+      onToggle={onToggle}
       viewLabel="View details"
       hideLabel="Hide details"
       iconClassName="panel-icon--emerald"
@@ -273,16 +313,16 @@ export const EventOverview = ({ meta, overview }) => {
               Schedule & Deadlines
             </p>
 
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-2">
               {scheduleItems.map((item, idx) => {
                 const Icon = item.icon;
                 return (
                   <div
                     key={idx}
                     title={`${item.date}${item.time ? ` • ${item.time}` : ""}`}
-                    className="group relative min-w-0 overflow-hidden rounded-xl border border-slate-800/70 bg-slate-950/70 p-3.5 transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-500/30 hover:bg-slate-950"
+                    className="group relative min-w-0 overflow-hidden rounded-xl border border-slate-800/70 bg-slate-950/70 p-3.5 transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-700 hover:bg-slate-950"
                   >
-                    <div className="absolute left-1/2 top-full z-20 mt-2 w-[300px] max-w-[80vw] -translate-x-1/2 translate-y-2 rounded-xl border border-emerald-500/30 bg-slate-950/95 p-2.5 text-left text-slate-100 opacity-0 shadow-2xl shadow-slate-950/60 ring-1 ring-slate-800/80 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-hover:visible invisible">
+                    <div className="absolute left-1/2 top-full z-20 mt-2 w-[300px] max-w-[80vw] -translate-x-1/2 translate-y-2 rounded-xl border border-slate-700 bg-slate-950/95 p-2.5 text-left text-slate-100 opacity-0 shadow-2xl shadow-slate-950/60 ring-1 ring-slate-800/80 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-hover:visible invisible">
                       <div className="mb-1 text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-400">
                         {item.label}
                       </div>
@@ -293,7 +333,7 @@ export const EventOverview = ({ meta, overview }) => {
                     </div>
 
                     <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-800 bg-slate-900 text-slate-300">
                         <Icon className="h-3.5 w-3.5" />
                       </div>
 

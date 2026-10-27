@@ -63,13 +63,13 @@ const DEFAULT_SEED_USERS = [
     {
         username: "admin",
         email: "admin@crt.com",
-        password: "Admin@123456",
+        password: process.env.SEED_ADMIN_PASSWORD,
         role: "ADMIN",
     },
     {
         username: "organizer",
         email: "organizer@crt.com",
-        password: "Organizer@123456",
+        password: process.env.SEED_ORGANIZER_PASSWORD,
         role: "ORGANIZER",
     },
 ];
@@ -92,6 +92,12 @@ const seedDefaultUsers = async () => {
 
         if (existingUser) {
             continue;
+        }
+
+        if (typeof userData.password !== "string" || !userData.password.trim()) {
+            throw new Error(
+                `Missing non-empty SEED_${userData.role}_PASSWORD for local default-user seeding`
+            );
         }
 
         await UserModel.create(userData);

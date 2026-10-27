@@ -21,7 +21,7 @@ export default function OrganizerProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 p-3 text-slate-100 sm:p-6">
+      <div className="min-h-screen bg-[#020617] p-3 text-slate-100 sm:p-6">
         <div className="mx-auto max-w-6xl space-y-5">
           <div className="h-14 animate-pulse rounded-2xl bg-slate-900" />
           <div className="h-32 animate-pulse rounded-2xl bg-slate-900" />
@@ -36,11 +36,11 @@ export default function OrganizerProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 p-3 text-slate-100 sm:p-6">
+    <div className="min-h-screen bg-[#020617] p-3 text-slate-100 sm:p-6">
       <div className="mx-auto max-w-6xl space-y-5">
         <div className="border-b border-slate-800/80 pb-3">
-          <h1 className="text-lg font-bold text-white sm:text-2xl">Organizer Profile</h1>
-          <p className="text-xs text-slate-400">
+          <h1 className="text-lg font-bold text-[#E2E8F0] sm:text-2xl">Organizer Profile</h1>
+          <p className="text-xs text-[#94A3B8]">
             Manage your credentials, organization details, and public presence
           </p>
         </div>

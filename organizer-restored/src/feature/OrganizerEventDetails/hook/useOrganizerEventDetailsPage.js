@@ -1,9 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { useSelector } from "react-redux";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { completeOrganizerEvent, deleteOrganizerEvent, updateOrganizerEvent } from "../../Event/api/event.api.js";
 import { useOrganizerEventDetails } from "./useOrganizerEventDetails.jsx";
+import {
+  captureStatusDraftBeforeCancellation,
+  createStatusConfirmationCancellationState,
+} from "./statusConfirmationState.js";
 
 const isEventPastEndTime = (event) => {
   if (!event) return false;
@@ -50,7 +56,11 @@ const isEventPastEndTime = (event) => {
 
 export const useOrganizerEventDetailsPage = (eventId) => {
   const navigate = useNavigate();
-  const { event, loading, error, isBookmarked, toggleBookmark, refetch } = useOrganizerEventDetails(eventId);
+  const queryClient = useQueryClient();
+  const { user } = useSelector((state) => state.auth || {});
+  const invalidateEventsList = () =>
+    queryClient.invalidateQueries({ queryKey: ["organizer-events", user?.id || "anon"] });
+  const { event, rawEvent, loading, error, isBookmarked, toggleBookmark, refetch } = useOrganizerEventDetails(eventId);
 
   const [activeTab, setActiveTab] = useState("overview-section");
   const [statusDraft, setStatusDraft] = useState("upcoming");
@@ -67,17 +77,18 @@ export const useOrganizerEventDetailsPage = (eventId) => {
 
   const eventStatus = String(event?.status || "").toLowerCase();
   const isDisplayCompleted = !!event && (isEventPastEndTime(event) || eventStatus === "completed");
-  const hasLegacyCompletedResults = !!event && eventStatus === "completed" && Array.isArray(event.results) && event.results.length > 0;
   const hasOfficialCompletion = !!event && Boolean(event.completionConfirmedAt);
-  const isOfficiallyCompleted = hasOfficialCompletion;
+  const isOfficiallyCompleted = eventStatus === "cancelled" && hasOfficialCompletion;
   const isCompleted = isDisplayCompleted;
-  const isFinalCompleted = hasOfficialCompletion;
-  const canComplete = false;
-  const canFinalizeCompletion = isDisplayCompleted && !hasOfficialCompletion;
+  const isFinalCompleted = isOfficiallyCompleted;
+  const canAnnounceResults = !!event && eventStatus === "completed";
+  const canComplete = !!event && !hasOfficialCompletion && isEventPastEndTime(event);
+  const canFinalizeCompletion = canComplete;
 
   useEffect(() => {
     if (event?.status) {
       setStatusDraft(event.status);
+      setCompletionPreviousStatus(event.status);
       setStatusReason(event.statusReason || "");
     }
   }, [event?.status, event?.statusReason]);
@@ -97,6 +108,18 @@ export const useOrganizerEventDetailsPage = (eventId) => {
 
     setResultEntries(nextEntries);
   }, [event]);
+
+  const notifyFinalCancelLocked = () => {
+    toast.error("This event is finally cancelled and can no longer be changed.");
+  };
+
+  const handleStatusDraftChange = (nextStatus) => {
+    if (isOfficiallyCompleted) return;
+    if (nextStatus === "cancelled" && statusDraft !== "cancelled") {
+      setCompletionPreviousStatus(captureStatusDraftBeforeCancellation(statusDraft, event?.status));
+    }
+    setStatusDraft(nextStatus);
+  };
 
   const handleBack = () => {
     navigate("/organizer/events");
@@ -143,6 +166,11 @@ export const useOrganizerEventDetailsPage = (eventId) => {
   const handleStatusUpdate = async () => {
     if (!eventId || !event || !statusDraft) return;
 
+    if (isOfficiallyCompleted) {
+      notifyFinalCancelLocked();
+      return;
+    }
+
     if (statusDraft === "completed") {
       setCompletionPreviousStatus(event?.status || "upcoming");
       setCompletionConfirmOpen(true);
@@ -150,6 +178,9 @@ export const useOrganizerEventDetailsPage = (eventId) => {
     }
 
     if (statusDraft === "cancelled" || statusDraft === "postponed") {
+      if (statusDraft === "postponed") {
+        setCompletionPreviousStatus(event?.status || "upcoming");
+      }
       setCompletionConfirmOpen(true);
       return;
     }
@@ -164,6 +195,7 @@ export const useOrganizerEventDetailsPage = (eventId) => {
       };
 
       await updateOrganizerEvent(eventId, payload);
+      invalidateEventsList();
       await refetch();
       toast.success("Event status updated successfully.");
     } catch (updateError) {
@@ -175,6 +207,11 @@ export const useOrganizerEventDetailsPage = (eventId) => {
 
   const handleStatusConfirmation = async ({ isFinalCancel = false } = {}) => {
     if (!eventId || !event || !statusDraft) return;
+
+    if (isOfficiallyCompleted) {
+      notifyFinalCancelLocked();
+      return false;
+    }
 
     const normalizedReason =
       statusDraft === "cancelled" || statusDraft === "postponed"
@@ -198,6 +235,7 @@ export const useOrganizerEventDetailsPage = (eventId) => {
       }
 
       await updateOrganizerEvent(eventId, payload);
+      invalidateEventsList();
       setCompletionConfirmOpen(false);
       await refetch();
       toast.success(
@@ -221,9 +259,15 @@ export const useOrganizerEventDetailsPage = (eventId) => {
   const handleCompleteEvent = async () => {
     if (!eventId || !event) return;
 
+    if (isOfficiallyCompleted) {
+      notifyFinalCancelLocked();
+      return;
+    }
+
     try {
       setCompletingEvent(true);
       await completeOrganizerEvent(eventId);
+      invalidateEventsList();
       setCompletionConfirmOpen(false);
       setStatusDraft("completed");
       await refetch();
@@ -237,13 +281,17 @@ export const useOrganizerEventDetailsPage = (eventId) => {
   };
 
   const cancelCompletionConfirmation = () => {
-    setCompletionConfirmOpen(false);
-    setFinalCancelWarningOpen(false);
-    setStatusDraft(completionPreviousStatus || event?.status || "upcoming");
+    const cancellationState = createStatusConfirmationCancellationState(
+      completionPreviousStatus,
+      event?.status,
+    );
+    setCompletionConfirmOpen(cancellationState.completionConfirmOpen);
+    setFinalCancelWarningOpen(cancellationState.finalCancelWarningOpen);
+    setStatusDraft(cancellationState.statusDraft);
   };
 
   const handleEditEvent = () => {
-    if (!eventId || Boolean(event?.completionConfirmedAt)) {
+    if (!eventId || Boolean(event?.completionConfirmedAt) || String(event?.status || "").trim().toLowerCase() === "completed") {
       toast.error("This event cannot be edited anymore.");
       return;
     }
@@ -255,13 +303,7 @@ export const useOrganizerEventDetailsPage = (eventId) => {
   };
 
   const handleRemoveResultEntry = (index) => {
-    setResultEntries((prev) => {
-      if (prev.length <= 1) {
-        return [{ participation: "Solo", participationCustom: "", position: "", name: "" }];
-      }
-
-      return prev.filter((_, entryIndex) => entryIndex !== index);
-    });
+    setResultEntries((prev) => prev.filter((_, entryIndex) => entryIndex !== index));
   };
 
   const handleResultEntryChange = (index, field, value) => {
@@ -271,8 +313,8 @@ export const useOrganizerEventDetailsPage = (eventId) => {
   };
 
   const handleSaveResult = async () => {
-    if (!eventId || !event || !isOfficiallyCompleted) {
-      toast.error("Results can only be saved after the event is finally confirmed as completed.");
+    if (!eventId || !event || !canAnnounceResults) {
+      toast.error("Results can only be announced after the event is completed.");
       return;
     }
 
@@ -291,7 +333,8 @@ export const useOrganizerEventDetailsPage = (eventId) => {
       })
       .filter((entry) => entry.position || entry.name || entry.participation);
 
-    if (normalizedEntries.length === 0) {
+    const hasSavedResults = Array.isArray(event.results) && event.results.length > 0;
+    if (normalizedEntries.length === 0 && !hasSavedResults) {
       toast.error("Please add at least one result entry.");
       return;
     }
@@ -313,6 +356,7 @@ export const useOrganizerEventDetailsPage = (eventId) => {
           winnerName: entry.name,
         })),
       });
+      invalidateEventsList();
       await refetch();
       setResultFormOpen(false);
       toast.success("Winner result saved successfully.");
@@ -326,6 +370,11 @@ export const useOrganizerEventDetailsPage = (eventId) => {
   const handleDeleteEvent = async () => {
     if (!eventId || !event) return;
 
+    if (isOfficiallyCompleted) {
+      notifyFinalCancelLocked();
+      return;
+    }
+
     const confirmed = window.confirm(`Delete "${event.title}"? This action cannot be undone.`);
 
     if (!confirmed) return;
@@ -333,6 +382,7 @@ export const useOrganizerEventDetailsPage = (eventId) => {
     try {
       setDeletingEvent(true);
       await deleteOrganizerEvent(eventId);
+      invalidateEventsList();
       toast.success("Event deleted successfully.");
       navigate("/organizer/events");
     } catch (deleteError) {
@@ -352,6 +402,7 @@ export const useOrganizerEventDetailsPage = (eventId) => {
 
   return {
     event,
+    rawEvent,
     loading,
     error,
     isBookmarked,
@@ -361,6 +412,7 @@ export const useOrganizerEventDetailsPage = (eventId) => {
     setActiveTab,
     statusDraft,
     setStatusDraft,
+    handleStatusDraftChange,
     statusReason,
     setStatusReason,
     updatingStatus,
@@ -382,6 +434,7 @@ export const useOrganizerEventDetailsPage = (eventId) => {
     isCompleted,
     isOfficiallyCompleted: isFinalCompleted,
     isFinalCompleted,
+    canAnnounceResults,
     canComplete,
     canFinalizeCompletion,
     completingEvent,

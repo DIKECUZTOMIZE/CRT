@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { useNavigate } from "react-router";
+import { useSelector } from "react-redux";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { createEvent, getEventById, updateEvent } from "../api/events.api.js";
 
@@ -108,8 +110,14 @@ const combineDateTime = (dateValue, timeValue) => {
   return nextDate;
 };
 
+const normalizeEventStatus = (value) => {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (normalized === "canceled") return "cancelled";
+  return normalized;
+};
+
 const deriveEventStatus = (eventData = {}) => {
-  const incomingStatus = String(eventData.status || "").trim().toLowerCase();
+  const incomingStatus = normalizeEventStatus(eventData.status);
 
   if (["cancelled", "postponed", "completed", "ended"].includes(incomingStatus)) {
     return incomingStatus;
@@ -134,10 +142,16 @@ const deriveEventStatus = (eventData = {}) => {
 const isEditLockedByStatus = (event) => {
   if (!event || typeof event !== "object") return false;
 
+  const normalizedStatus = normalizeEventStatus(event.status);
+  if (event.completionConfirmedAt) return true;
+  if (["completed", "cancelled", "postponed"].includes(normalizedStatus)) {
+    return true;
+  }
+
   return false;
 };
 
-const sanitizeEventPayload = (formData, eventId = null) => {
+const sanitizeEventPayload = (formData) => {
   const safeFormData = { ...(formData || {}) };
   delete safeFormData.results;
   delete safeFormData.completionConfirmedAt;
@@ -217,8 +231,12 @@ const sanitizeEventPayload = (formData, eventId = null) => {
     payload[key] = removeEmpty(value);
   });
 
-  const participationEnabled = payload.hasParticipationType === "Yes" || payload.hasParticipationType === true;
-  const participationMode = payload.participationMode || "Solo";
+  const hasSelectedParticipationMode = ["Solo", "Team", "Both"].includes(payload.participationMode);
+  const participationEnabled =
+    hasSelectedParticipationMode ||
+    payload.hasParticipationType === "Yes" ||
+    payload.hasParticipationType === true;
+  const participationMode = hasSelectedParticipationMode ? payload.participationMode : "Solo";
   const minTeamSize = payload.minTeamSize === undefined || payload.minTeamSize === "" ? undefined : Number(payload.minTeamSize);
   const maxTeamSize = payload.maxTeamSize === undefined || payload.maxTeamSize === "" ? undefined : Number(payload.maxTeamSize);
 
@@ -232,7 +250,9 @@ const sanitizeEventPayload = (formData, eventId = null) => {
   delete payload.results;
   delete payload.completionConfirmedAt;
 
-  if (payload.totalSeats !== undefined && payload.totalSeats !== "") {
+  if (payload.totalSeats === undefined || payload.totalSeats === "") {
+    delete payload.totalSeats;
+  } else {
     payload.totalSeats = Number(payload.totalSeats);
   }
 
@@ -271,12 +291,34 @@ const sanitizeEventPayload = (formData, eventId = null) => {
   }
 
   if (payload.prizes?.length) {
-    payload.prizes = payload.prizes.map((prize) => ({
-      ...prize,
-      position: prize.position || "General",
-      amount: prize.amount === undefined || prize.amount === "" ? undefined : Number(prize.amount),
-      reward: prize.reward || "",
-    }));
+    payload.prizes = payload.prizes
+      .filter((prize) => {
+        if (!prize || typeof prize !== "object") return false;
+
+        const amount = prize.amount;
+        const hasAmount =
+          amount !== undefined &&
+          amount !== null &&
+          !(typeof amount === "string" && amount.trim() === "") &&
+          Number.isFinite(Number(amount)) &&
+          Number(amount) >= 0;
+        const hasReward =
+          typeof prize.reward === "string" && prize.reward.trim().length > 0;
+
+        return hasAmount || hasReward;
+      })
+      .map((prize) => ({
+        ...prize,
+        position: prize.position || "General",
+        amount:
+          prize.amount === undefined ||
+          prize.amount === null ||
+          (typeof prize.amount === "string" && prize.amount.trim() === "") ||
+          !Number.isFinite(Number(prize.amount))
+            ? undefined
+            : Number(prize.amount),
+        reward: prize.reward || "",
+      }));
   }
 
   payload.participation = {
@@ -302,8 +344,10 @@ const sanitizeEventPayload = (formData, eventId = null) => {
   payload.participationSteps = sanitizeArray(payload.participationSteps || []);
   payload.schedules = sanitizeArray(payload.schedules || []);
 
-  if (payload.status && ["upcoming", "live", "completed", "ended", "cancelled", "postponed"].includes(String(payload.status).trim().toLowerCase())) {
-    payload.status = payload.status.trim().toLowerCase();
+  const normalizedStatus = normalizeEventStatus(payload.status);
+
+  if (payload.status && ["upcoming", "live", "completed", "ended", "cancelled", "postponed"].includes(normalizedStatus)) {
+    payload.status = normalizedStatus;
   } else {
     payload.status = payload.status ? deriveEventStatus(payload) : "upcoming";
   }
@@ -394,6 +438,8 @@ const populateFormFromEvent = (event) => {
 
 export const useCreateEventForm = (eventId = null) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user } = useSelector((state) => state.auth || {});
   const originalEventSnapshotRef = useRef(null);
   const methods = useForm({
     defaultValues: {
@@ -505,7 +551,7 @@ export const useCreateEventForm = (eventId = null) => {
 
   const onSubmit = async (formData) => {
     try {
-      const payload = sanitizeEventPayload(formData, eventId);
+      const payload = sanitizeEventPayload(formData);
 
       if (eventId) {
         const nextSnapshot = JSON.stringify(stringifyComparableValue(formData));
@@ -518,12 +564,14 @@ export const useCreateEventForm = (eventId = null) => {
         }
 
         await updateEvent(eventId, payload);
+        queryClient.invalidateQueries({ queryKey: ["organizer-events", user?.id || "anon"] });
         toast.success("Event updated successfully.");
         navigate("/organizer/events");
         return;
       }
 
       await createEvent(payload);
+      queryClient.invalidateQueries({ queryKey: ["organizer-events", user?.id || "anon"] });
       toast.success("Event created successfully.");
       methods.reset();
       navigate("/organizer/events");

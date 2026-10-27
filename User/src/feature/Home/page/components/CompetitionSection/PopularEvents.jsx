@@ -1,8 +1,10 @@
 import React from "react";
 import CompetitionSection from "./CompetitionSection";
 
-const PopularEvents = ({ competitions = [], savedIds = [], onToggleSave }) => (
+const PopularEvents = ({ competitions = [], savedIds = [], onToggleSave, sectionKey, quickFilters = [] }) => (
   <CompetitionSection
+    sectionKey={sectionKey}
+    quickFilters={quickFilters}
     title="Popular"
     subtitle="Trending events with maximum participant signups"
     competitions={competitions}

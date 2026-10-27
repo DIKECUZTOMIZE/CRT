@@ -38,7 +38,8 @@ passport.deserializeUser(async (id, done) => {
     }
 });
 
-passport.use(
+// Register the Google strategy only when OAuth is configured; an empty clientID makes the constructor throw.
+if (env.GOOGLE_CLIENT_ID) passport.use(
     new GoogleStrategy(
         {
             clientID: env.GOOGLE_CLIENT_ID,

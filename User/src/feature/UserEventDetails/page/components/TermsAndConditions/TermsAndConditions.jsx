@@ -8,6 +8,8 @@ export const TermsAndConditions = ({
   title = "Rules & Regulations",
   countLabel = "Rules",
   toggleLabel = "rules",
+  open = false,
+  onToggle,
 }) => {
   if (!Array.isArray(terms) || terms.length === 0) return null;
 
@@ -17,6 +19,8 @@ export const TermsAndConditions = ({
       badge={`${terms.length} ${countLabel}`}
       icon={ShieldCheck}
       initialOpen={initialOpen}
+      open={open}
+      onToggle={onToggle}
       viewLabel={`View ${toggleLabel}`}
       hideLabel={`Hide ${toggleLabel}`}
       iconClassName="panel-icon--emerald"

@@ -129,25 +129,25 @@ export const EntryFeeFilter = ({
 
       <div className={`flex flex-col gap-2 sm:gap-3 ${className}`}>
         <div className="flex items-center justify-between gap-3">
-          <label className="text-xs font-semibold text-slate-300">Pricing & Prize</label>
+          <label className="text-xs font-semibold text-slate-700">Pricing & Prize</label>
 
           {/* Free Only Checkbox / Switch */}
-          <label className="flex cursor-pointer items-center gap-2 select-none rounded-lg border border-slate-800 bg-slate-950/60 px-2 py-1.5">
+          <label className="flex cursor-pointer select-none items-center gap-2 rounded-lg border border-[#CDE9DB] bg-white px-2 py-1.5">
             <input
               type="checkbox"
               checked={isFreeOnly}
               onChange={(e) => onFreeOnlyChange(e.target.checked)}
-              className="h-4 w-4 rounded bg-slate-950 border-slate-800 text-slate-500 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-slate-500"
+              className="h-4 w-4 cursor-pointer rounded border-slate-300 bg-white text-emerald-600 accent-emerald-600 focus:ring-0 focus:ring-offset-0"
             />
-            <span className="text-[11px] font-medium text-slate-300">Free Only</span>
+            <span className="text-[11px] font-medium text-slate-700">Free Only</span>
           </label>
         </div>
 
         {/* Prize Pool Range Indicator */}
         <div className="flex flex-col gap-1.5 sm:gap-2">
           <div className="flex justify-between text-[11px] font-medium">
-            <span className="text-slate-400">Min Prize Pool</span>
-            <span className="font-bold text-slate-300">${minPrize.toLocaleString()}</span>
+            <span className="text-slate-500">Min Prize Pool</span>
+            <span className="font-bold text-slate-700">${minPrize.toLocaleString()}</span>
           </div>
           <input
             type="range"

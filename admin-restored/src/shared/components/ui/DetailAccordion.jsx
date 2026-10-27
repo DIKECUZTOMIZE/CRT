@@ -20,7 +20,7 @@ const DetailAccordion = ({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-3 text-left"
+        className="flex w-full items-center justify-between gap-3 text-left lg:rounded-xl lg:outline-none lg:focus-visible:ring-2 lg:focus-visible:ring-emerald-500/60 lg:focus-visible:ring-offset-2 lg:focus-visible:ring-offset-slate-900"
       >
         <div className="flex min-w-0 items-center gap-3">
           {Icon && (

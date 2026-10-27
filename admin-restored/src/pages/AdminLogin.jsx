@@ -6,11 +6,13 @@ import { useAdminAuth } from "../feature/Auth/hooks/useAdminAuth.js";
 import { getRegisteredEmails, requestPasswordReset, resetPasswordWithOtp } from "../feature/Auth/api/authApi.js";
 import { getOtpCountdown } from "../shared/utils/passwordResetTimer.js";
 import { isAdminUser } from "../utils/adminAuth.js";
+import { validateLoginForm } from "../utils/loginValidation.js";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
-  const { login, loading, error, setError, user } = useAdminAuth();
-  const [form, setForm] = useState({ email: "admin@crt.com", password: "Admin@123456" });
+  const { login, loading, error, setError, user } = useAdminAuth({ skipRefresh: true });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [form, setForm] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
@@ -217,11 +219,20 @@ const AdminLogin = () => {
     event.preventDefault();
     setError("");
 
+    const validationError = validateLoginForm(form);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       await login(form);
       navigate("/admin/dashboard", { replace: true });
     } catch (err) {
       // error already set in hook
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -455,10 +466,10 @@ const AdminLogin = () => {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={isSubmitting}
                 className="h-12 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 font-bold text-white shadow-lg shadow-emerald-500/20 transition hover:brightness-110 disabled:opacity-60"
               >
-                {loading ? "Signing in..." : "Sign in"}
+                {isSubmitting ? "Signing in..." : "Sign in"}
               </button>
             </form>
           </div>

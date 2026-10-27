@@ -4,15 +4,12 @@ import {
   UserCheck,
   Plus,
   Trash2,
-  ChevronDown,
-  ChevronUp,
   HelpCircle,
 } from "lucide-react";
 import FormSection from "../common/FormSection";
 
 export default function EventHowToParticipate() {
-  const { register, control, watch } = useFormContext();
-  const isEditing = watch("isEditing");
+  const { register, control } = useFormContext();
 
   const {
     fields: stepFields,
@@ -23,17 +20,9 @@ export default function EventHowToParticipate() {
     name: "participationSteps",
   });
 
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  // Default steps fallback initialization
-  const defaultSteps = [
-    { text: "Contact the organizer for participation details." },
-    { text: "Discuss the event requirements and eligibility." },
-    { text: "The organizer will review your request and accept your participation." },
-    { text: "Complete the registration process as instructed by the organizer." },
-  ];
-
-  const displaySteps = stepFields.length > 0 ? stepFields : isEditing ? [] : defaultSteps;
+  const displaySteps = stepFields;
 
   const getSummaryText = () => {
     const totalSteps = displaySteps.length;
@@ -45,46 +34,35 @@ export default function EventHowToParticipate() {
       icon={UserCheck}
       title="How To Participate"
       description="Define the participation and registration workflow for attendees."
+      onToggle={() => setIsExpanded(!isExpanded)}
+      isExpanded={isExpanded}
+      toggleLabel={isExpanded ? "Collapse how to participate" : "Expand how to participate"}
     >
-      <div className="space-y-4">
-        {/* Accordion Toggle Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-          <button
-            type="button"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex w-full items-center justify-between rounded-lg py-1 text-left text-xs font-semibold text-slate-700 transition-colors hover:text-emerald-700 focus:outline-none"
-          >
-            <span className="truncate pr-2">{getSummaryText()}</span>
-            {isExpanded ? (
-              <ChevronUp className="h-4 w-4 shrink-0 text-slate-500" />
-            ) : (
-              <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" />
-            )}
-          </button>
-        </div>
-
-        {isExpanded && (
-          <div className="space-y-4 transition-all">
-            {/* Sub-Header / Action Button */}
-            <div className="flex items-center justify-between pt-1">
-              <div>
-                <span className="text-xs font-semibold text-slate-700">
-                  Participation Steps Workflow
-                </span>
-                <p className="text-[10px] text-slate-400">
-                  Customize the steps participants need to follow.
-                </p>
+      {isExpanded && (
+        <div className="space-y-4 transition-all">
+          <div className="flex items-center justify-between pt-1">
+            <div>
+              <span className="text-xs font-semibold text-slate-700">
+                Participation Steps Workflow
+              </span>
+              <div className="mt-1 flex items-center gap-2 text-[10px] text-slate-400">
+                <span>{getSummaryText()}</span>
               </div>
-
-              <button
-                type="button"
-                onClick={() => appendStep({ text: "" })}
-                className="flex shrink-0 items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-all hover:bg-emerald-100 active:scale-95"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Add Step</span>
-              </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => appendStep({ title: "", text: "" })}
+              className="flex shrink-0 items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-all hover:bg-emerald-100 active:scale-95"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Add Step</span>
+            </button>
+          </div>
+
+          <p className="text-[10px] text-slate-400">
+            Customize the steps participants need to follow.
+          </p>
 
             {/* Empty State */}
             {displaySteps.length === 0 ? (
@@ -128,8 +106,17 @@ export default function EventHowToParticipate() {
                         )}
                       </div>
 
-                      {/* Input Field */}
                       <div>
+                        <label className="mb-1 block text-[10px] font-medium text-slate-500">
+                          Step Title
+                        </label>
+                        <input
+                          type="text"
+                          defaultValue={step.title || ""}
+                          placeholder={`Enter step ${index + 1} title...`}
+                          {...register(`participationSteps.${index}.title`)}
+                          className="mb-3 h-9 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-2.5 text-xs text-slate-800 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        />
                         <label className="mb-1 block text-[10px] font-medium text-slate-500">
                           Step Instructions
                         </label>
@@ -148,7 +135,6 @@ export default function EventHowToParticipate() {
             )}
           </div>
         )}
-      </div>
     </FormSection>
   );
 }

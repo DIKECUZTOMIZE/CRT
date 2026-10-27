@@ -1,19 +1,21 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useFormContext, useFieldArray } from "react-hook-form";
 import {
   ShieldAlert,
   Plus,
   Trash2,
-  ChevronDown,
-  ChevronUp,
-  AlertCircle,
   Tag,
 } from "lucide-react";
 import FormSection from "../common/FormSection";
 
 export default function EventRules() {
-  const { register, watch, control, setValue } = useFormContext();
-  const isEditing = watch("isEditing");
+  const {
+    register,
+    watch,
+    control,
+    setValue,
+    formState: { errors, submitCount },
+  } = useFormContext();
 
   const {
     fields: ruleFields,
@@ -24,30 +26,16 @@ export default function EventRules() {
     name: "eventRules",
   });
 
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const watchedRules = watch("eventRules");
 
-  // Default fallback rules
-  const defaultRules = [
-    {
-      type: "General",
-      text: "Participants must present valid ID proof at the venue.",
-    },
-    {
-      type: "Disqualification",
-      text: "Plagiarism or unauthorized pre-built projects may result in disqualification.",
-    },
-    {
-      type: "Refund",
-      text: "Registration fees are non-refundable unless otherwise stated.",
-    },
-    {
-      type: "Conduct",
-      text: "Participants must follow the organizer's event rules.",
-    },
-  ];
+  useEffect(() => {
+    if (errors.eventRules?.some((rule) => rule?.type || rule?.text)) {
+      setIsExpanded(true);
+    }
+  }, [errors.eventRules, submitCount]);
 
-  const displayRules = ruleFields.length > 0 ? ruleFields : isEditing ? [] : defaultRules;
+  const displayRules = ruleFields;
   const activeRulesCount = displayRules.length;
 
   const standardCategories = [
@@ -63,66 +51,39 @@ export default function EventRules() {
       icon={ShieldAlert}
       title="Rules & Regulations"
       description="Specify strict policies, code of conduct, and eligibility guidelines."
+      onToggle={() => setIsExpanded(!isExpanded)}
+      isExpanded={isExpanded}
+      toggleLabel={isExpanded ? "Collapse rules and regulations" : "Expand rules and regulations"}
     >
-      <div className="space-y-4">
-        {/* Accordion Toggle Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-          <button
-            type="button"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex w-full items-center justify-between rounded-lg py-1 text-left text-xs font-semibold text-slate-700 transition-colors hover:text-emerald-700 focus:outline-none"
-          >
-            <span className="truncate pr-2">
-              {`${activeRulesCount} Rule${activeRulesCount > 1 ? "s" : ""} configured for this event`}
-            </span>
-            {isExpanded ? (
-              <ChevronUp className="h-4 w-4 shrink-0 text-slate-500" />
-            ) : (
-              <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" />
-            )}
-          </button>
-        </div>
-
-        {isExpanded && (
-          <div className="space-y-4 transition-all">
-            {/* Action Bar Header */}
-            <div className="flex items-center justify-between pt-1">
-              <div>
-                <span className="text-xs font-semibold text-slate-700">
-                  Event Rules List
-                </span>
-                <p className="text-[10px] text-slate-400">
-                  Add clear terms that attendees must follow during registration.
-                </p>
+      <div className={isExpanded ? "space-y-4 transition-all" : "hidden"}>
+          <div className="flex items-center justify-between pt-1">
+            <div>
+              <span className="text-xs font-semibold text-slate-700">
+                Event Rules List
+              </span>
+              <div className="mt-1 flex items-center gap-2 text-[10px] text-slate-400">
+                <span>{activeRulesCount} Rule{activeRulesCount === 1 ? "" : "s"}</span>
               </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  appendRule({
-                    type: "General",
-                    text: "",
-                  })
-                }
-                className="flex shrink-0 items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-all hover:bg-emerald-100 active:scale-95"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Add Rule</span>
-              </button>
             </div>
 
-            {/* Empty State Fallback */}
-            {ruleFields.length === 0 && (
-              <div className="mb-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-4 py-4 text-center">
-                <AlertCircle className="mx-auto mb-1.5 h-5 w-5 text-slate-400" />
-                <p className="text-xs font-medium text-slate-600">
-                  Showing default rules preset
-                </p>
-                <p className="mt-0.5 text-[10px] text-slate-400">
-                  Click "Add Rule" to start customizing your own regulations.
-                </p>
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={() =>
+                appendRule({
+                  type: "General",
+                  text: "",
+                })
+              }
+              className="flex shrink-0 items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-all hover:bg-emerald-100 active:scale-95"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Add Rule</span>
+            </button>
+          </div>
+
+          <p className="text-[10px] leading-relaxed text-slate-400">
+            Add clear terms that attendees must follow during registration.
+          </p>
 
             {/* Horizontal Card Slider Container */}
             <div className="flex gap-4 overflow-x-auto pb-4 pt-1 snap-x snap-mandatory scrollbar-thin scrollbar-track-slate-100 scrollbar-thumb-emerald-200 md:grid md:grid-cols-2 md:overflow-visible">
@@ -214,6 +175,11 @@ export default function EventRules() {
                               })}
                               className="h-8 w-full rounded-xl border border-emerald-300 bg-emerald-50/30 pl-8 pr-2.5 text-xs text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                             />
+                            {errors.eventRules?.[index]?.type?.message && (
+                              <p className="mt-1 text-[10px] text-rose-500">
+                                {errors.eventRules[index].type.message}
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>
@@ -232,15 +198,18 @@ export default function EventRules() {
                           })}
                           className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-2.5 text-xs text-slate-800 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                         />
+                        {errors.eventRules?.[index]?.text?.message && (
+                          <p className="mt-1 text-[10px] text-rose-500">
+                            {errors.eventRules[index].text.message}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
                 );
               })}
             </div>
-          </div>
-        )}
-      </div>
+        </div>
     </FormSection>
   );
 }

@@ -19,7 +19,7 @@ const ExpandableContent = ({ content }) => {
     <div className="mt-4 space-y-3">
       <div
         className={`relative overflow-hidden transition-all duration-300 ease-in-out ${
-          !isExpanded ? "max-h-28" : "max-h-[1200px]"
+          !isExpanded ? "max-h-28" : "max-h-[1200px] lg:max-h-none"
         }`}
       >
         {isArray ? (
@@ -48,7 +48,7 @@ const ExpandableContent = ({ content }) => {
       <button
         type="button"
         onClick={() => setIsExpanded((prev) => !prev)}
-        className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-400 transition-colors hover:text-emerald-300 focus:outline-none"
+        className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-400 transition-colors hover:text-emerald-300 focus:outline-none lg:focus-visible:rounded-md lg:focus-visible:ring-2 lg:focus-visible:ring-emerald-500/60 lg:focus-visible:ring-offset-2 lg:focus-visible:ring-offset-slate-950"
       >
         <span>{isExpanded ? "Show Less" : "Read More"}</span>
         {isExpanded ? (

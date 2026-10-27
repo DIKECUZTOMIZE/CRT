@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import DetailAccordion from "../../../../../shared/components/ui/DetailAccordion";
 
-export const EventOverview = ({ meta, overview }) => {
+export const EventOverview = ({ meta, overview, open = false, onToggle }) => {
   const data = meta || overview || {};
 
   if (!data || typeof data !== "object") {
@@ -79,6 +79,17 @@ export const EventOverview = ({ meta, overview }) => {
     };
   };
 
+  const seatAvailability = String(data.seatAvailability || "").trim().toLowerCase();
+  const seatAvailabilityText =
+    seatAvailability === "not available"
+      ? "Sold out"
+      : seatAvailability === "other"
+        ? data.customSeatDetails || "Custom"
+        : seatAvailability === "available"
+          ? "Available"
+          : "";
+  const seatCount = Number(data.seatsAvailable);
+
   const mainStats = [
     {
       icon: CheckCircle2,
@@ -88,14 +99,28 @@ export const EventOverview = ({ meta, overview }) => {
       show: Boolean(data.status),
     },
     {
+      icon: Sparkles,
+      label: "Status Note",
+      type: "text",
+      value: data.statusReason || "",
+      show: Boolean(data.statusReason && (data.status === "cancelled" || data.status === "postponed")),
+    },
+    {
+      icon: Users,
+      label: "Registration Availability",
+      type: "text",
+      value: seatAvailabilityText,
+      show: Boolean(seatAvailabilityText),
+    },
+    {
       icon: Users,
       label: "Seats Available",
       type: "seats",
-      value:
-        data.seatsAvailable !== undefined && data.seatsAvailable !== null
-          ? `${data.seatsAvailable} Seats`
-          : null,
-      show: data.seatsAvailable !== undefined && data.seatsAvailable !== null,
+      value: Number.isFinite(seatCount) && seatCount > 0 ? `${seatCount} Seats` : null,
+      show:
+        Number.isFinite(seatCount) &&
+        seatCount > 0 &&
+        (seatAvailability === "available" || !seatAvailability),
     },
     {
       icon: MapPin,
@@ -172,6 +197,8 @@ export const EventOverview = ({ meta, overview }) => {
       title="Event Overview"
       icon={Sparkles}
       initialOpen={false}
+      open={open}
+      onToggle={onToggle}
       viewLabel="View details"
       hideLabel="Hide details"
       iconClassName="panel-icon--emerald"

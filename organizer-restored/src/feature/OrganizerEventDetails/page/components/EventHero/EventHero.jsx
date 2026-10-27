@@ -1,18 +1,14 @@
 import React from "react";
 import {
-  Bookmark,
   Share2,
   ShieldCheck,
-  Calendar,
   Globe2,
   Building2,
   Users,
   Tag,
-  Sparkles,
   Eye,
   Star,
 } from "lucide-react";
-import { getDaysRemaining } from "../../../utils/eventDetailsUtils";
 
 const formatCompactMetric = (value) => {
   const numericValue = Number(value || 0);
@@ -24,37 +20,11 @@ const formatCompactMetric = (value) => {
   return String(numericValue);
 };
 
-export const EventHero = ({ event, isBookmarked, onBookmark, onShare }) => {
+export const EventHero = ({ event, onShare }) => {
   if (!event) return null;
-
-  const registrationDeadline =
-    event?.meta?.registrationDeadline ||
-    event?.overview?.registrationDeadline ||
-    event?.registrationEnd ||
-    event?.registrationDeadline ||
-    event?.meta?.startDate ||
-    event?.overview?.startDate ||
-    event?.startDate;
-
-  const daysRemainingText = registrationDeadline
-    ? getDaysRemaining(registrationDeadline)
-    : null;
-
-  const feeSource =
-    event?.entryFee && typeof event.entryFee === "object"
-      ? event.entryFee
-      : { isFree: Boolean(event?.isFree), amount: Number(event?.fee || 0), categories: [] };
-
-  const entryFee =
-    feeSource.isFree || Number(feeSource.amount || 0) === 0
-      ? "Free Entry"
-      : feeSource.amount
-        ? `₹${feeSource.amount}`
-        : null;
 
   const viewCount = Number(event?.viewsCount ?? event?.viewCount ?? 0) || 0;
   const ratingValue = Number(event?.avgRating ?? event?.rating ?? 0) || 0;
-  const ratingCount = Number(event?.ratingsCount ?? event?.reviewCount ?? event?.ratingCount ?? 0) || 0;
   const bannerUrl = event?.bannerUrl || event?.cardImageUrl || "/assets/images/banner-placeholder.png";
 
   return (
@@ -107,15 +77,6 @@ export const EventHero = ({ event, isBookmarked, onBookmark, onShare }) => {
           )}
         </div>
 
-        {/* MOBILE OVERLAY: DAYS REMAINING (Bottom Left on Image) */}
-        {daysRemainingText && (
-          <div className="absolute bottom-3 left-3 sm:hidden">
-            <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-slate-950/90 px-2 py-0.5 text-[10px] font-bold text-emerald-400 backdrop-blur-md">
-              <Calendar className="h-2.5 w-2.5 shrink-0" />
-              {daysRemainingText}
-            </span>
-          </div>
-        )}
       </div>
 
       {/* HEADER & META CONTENT */}
@@ -134,7 +95,6 @@ export const EventHero = ({ event, isBookmarked, onBookmark, onShare }) => {
           <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-700/80 bg-slate-900/80 px-2.5 py-1.5 text-[10px] font-bold text-slate-200 sm:text-xs">
             <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
             {ratingValue > 0 ? ratingValue.toFixed(1) : "New"}
-            {ratingCount > 0 && <span className="text-slate-400">({ratingCount})</span>}
           </span>
         </div>
 

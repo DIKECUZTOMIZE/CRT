@@ -428,6 +428,10 @@ export const refreshService = async (refreshToken) => {
             throw new UnauthorizedError("Session not found");
         }
 
+        if (session.expiresAt <= new Date()) {
+            throw new UnauthorizedError("Session expired");
+        }
+
         const isRefreshTokenValid =
             session.refreshToken === refreshToken ||
             await session.compareRefreshToken(refreshToken);

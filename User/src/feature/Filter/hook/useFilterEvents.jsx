@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getPublicEvents } from "../api/filter.api.js";
+import { getAllPublicEvents, getPublicEvents } from "../api/filter.api.js";
+import { applySectionRule } from "./sectionRules.js";
 
 const toNumber = (value) => {
   const numeric = Number(value ?? 0);
@@ -86,6 +87,9 @@ const normalizePublicEvent = (event) => {
 
   const minEntryFee = getMinEntryFee(event);
   const prizePool = getPrizePool(event);
+  const startDate = event?.eventDate || event?.eventStart || event?.startDate || event?.eventStartDate || event?.registrationStart || "";
+  const endDate = event?.eventEndDate || event?.eventEnd || event?.endDate || event?.registrationEnd || "";
+  const totalSeats = toNumber(event?.totalSeats ?? event?.seatsAvailable ?? event?.availableSeats);
 
   return {
     id,
@@ -97,22 +101,36 @@ const normalizePublicEvent = (event) => {
     type: event?.eventType || event?.competitionType || event?.category || "Competition",
     mode: event?.eventMode || event?.mode || "Offline",
     location: normalizeLocationValue(event),
-    banner: event?.bannerUrl || event?.cardImageUrl || event?.image || "",
-    date: event?.eventDate || event?.eventStartDate || event?.registrationStart || "TBA",
+    banner:
+      event?.bannerUrl ||
+      event?.cardImageUrl ||
+      event?.banner ||
+      event?.image ||
+      event?.imageUrl ||
+      "",
+    date: [startDate, endDate].filter(Boolean).join(" - ") || "TBA",
     status: event?.status || "upcoming",
-    entryFee: minEntryFee > 0 ? formatMoney(minEntryFee) : "Free",
+    entryFee: minEntryFee > 0 ? `₹${minEntryFee}` : "Free",
     prize: prizePool > 0 ? formatMoney(prizePool) : "No prize pool",
-    seatsAvailable: Number(event?.totalSeats ?? event?.seatsAvailable ?? 0),
+    rating: Number(event?.rating ?? event?.avgRating ?? 0),
+    reviewsCount: Number(event?.reviewsCount ?? event?.reviewCount ?? event?.ratingCount ?? 0),
+    seatAvailability: event?.seatAvailability || (totalSeats > 0 ? "Available" : "Not Available"),
+    totalSeats,
+    customSeatDetails: event?.customSeatDetails || "",
+    seatsAvailable: totalSeats > 0 ? totalSeats : 0,
     participantsCount: Number(event?.participantsCount ?? event?.registeredCount ?? 0),
     tags: Array.isArray(event?.tags) ? event.tags : [],
     raw: event,
   };
 };
 
-export const useFilterEvents = (filters = {}) => {
+export const useFilterEvents = (
+  filters = {},
+  { fetchAll = false, sectionKey = null, city = "", state = "", quickFilters = [] } = {}
+) => {
   const { data = [], isLoading, isError, error } = useQuery({
-    queryKey: ["public-events-filter", JSON.stringify(filters)],
-    queryFn: () => getPublicEvents(filters),
+    queryKey: ["public-events-filter", JSON.stringify(filters), fetchAll],
+    queryFn: () => (fetchAll ? getAllPublicEvents(filters) : getPublicEvents(filters)),
     staleTime: 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -121,8 +139,8 @@ export const useFilterEvents = (filters = {}) => {
   });
 
   const events = useMemo(
-    () => (Array.isArray(data) ? data.map(normalizePublicEvent) : []),
-    [data]
+    () => (Array.isArray(data) ? applySectionRule(data, sectionKey, { city, state, quickFilters }).map(normalizePublicEvent) : []),
+    [data, sectionKey, city, state, quickFilters]
   );
 
   return {

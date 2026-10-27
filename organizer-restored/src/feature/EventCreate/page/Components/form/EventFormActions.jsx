@@ -1,5 +1,5 @@
 import React from "react";
-import { Save, CheckCircle2, Loader2, X } from "lucide-react";
+import { CheckCircle2, Loader2, X } from "lucide-react";
 
 export default function EventFormActions({ isSubmitting = false }) {
   return (
@@ -28,18 +28,6 @@ export default function EventFormActions({ isSubmitting = false }) {
                 </span>
               </button>
 
-              {/* Save Draft Button */}
-              <button
-                type="button"
-                disabled={isSubmitting}
-                className="event-form-secondary-btn flex h-11 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-zinc-950 px-3 text-xs font-semibold text-emerald-200 transition-all hover:bg-emerald-950/40 active:scale-95 disabled:opacity-50 sm:h-9 sm:px-4"
-              >
-                <Save className="h-4 w-4 text-emerald-300" />
-                <span className="text-[11px] font-semibold sm:text-xs">
-                  <span className="inline sm:hidden">Draft</span>
-                  <span className="hidden sm:inline">Save Draft</span>
-                </span>
-              </button>
             </div>
 
             {/* Primary Action Button */}

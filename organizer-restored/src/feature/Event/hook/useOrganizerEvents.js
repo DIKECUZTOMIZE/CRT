@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useSelector } from "react-redux";
+import { useQuery } from "@tanstack/react-query";
 
 import { deleteOrganizerEvent, getOrganizerEvents } from "../api/event.api.js";
 
@@ -11,6 +13,14 @@ const filterTabs = [
   "cancelled",
   "postponed",
 ];
+
+const EMPTY_EVENTS = [];
+
+const normalizeEventStatus = (value) => {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (normalized === "canceled") return "cancelled";
+  return normalized;
+};
 
 const formatDate = (value) => {
   if (!value) return "TBA";
@@ -89,7 +99,7 @@ const combineDateTime = (dateValue, timeValue) => {
 };
 
 const deriveEventStatus = (event) => {
-  const incomingStatus = String(event?.status || "").trim().toLowerCase();
+  const incomingStatus = normalizeEventStatus(event?.status);
 
   if (["cancelled", "postponed", "completed", "ended"].includes(incomingStatus)) {
     return incomingStatus;
@@ -150,41 +160,28 @@ const normalizeEvents = (items = []) =>
   });
 
 export const useOrganizerEvents = () => {
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { user } = useSelector((state) => state.auth || {});
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("All");
 
-  const fetchEvents = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError("");
-      const list = await getOrganizerEvents();
-      setEvents(normalizeEvents(list));
-    } catch (err) {
-      setEvents([]);
-      setError(err?.message || "Unable to load events.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const query = useQuery({
+    queryKey: ["organizer-events", user?.id || "anon"],
+    queryFn: getOrganizerEvents,
+    select: normalizeEvents,
+  });
 
-  useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
+  const events = query.isError ? EMPTY_EVENTS : query.data ?? EMPTY_EVENTS;
+  const loading = query.isFetching;
+  const error = query.isError ? query.error?.message || "Unable to load events." : "";
+  const fetchEvents = query.refetch;
 
   const deleteEvent = useCallback(async (eventId, eventTitle) => {
     const confirmed = window.confirm(`Are you sure you want to delete "${eventTitle}"?`);
     if (!confirmed) return false;
 
-    try {
-      await deleteOrganizerEvent(eventId);
-      await fetchEvents();
-      return true;
-    } catch (err) {
-      throw err;
-    }
+    await deleteOrganizerEvent(eventId);
+    await fetchEvents();
+    return true;
   }, [fetchEvents]);
 
   const filteredEvents = useMemo(() => {

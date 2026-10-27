@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Search, SlidersHorizontal } from "lucide-react";
 
 const isKnownBrokenUploadUrl = (value) => {
@@ -16,6 +16,60 @@ const Hero = ({
   slides = [],
 }) => {
   const [activeSlide, setActiveSlide] = useState(0);
+  const [isDraggingFilters, setIsDraggingFilters] = useState(false);
+  const activeFilters = Array.isArray(activeFilter) ? activeFilter : [activeFilter || "all"];
+  const filterRowRef = useRef(null);
+  const filterDragRef = useRef({ startX: 0, startScrollLeft: 0, moved: false, suppressClick: false, cleanup: null });
+
+  useEffect(() => () => filterDragRef.current.cleanup?.(), []);
+
+  const handleFilterMouseDown = useCallback((event) => {
+    const row = filterRowRef.current;
+    const drag = filterDragRef.current;
+    if (event.button !== 0 || !row) return;
+
+    drag.cleanup?.();
+    drag.startX = event.clientX;
+    drag.startScrollLeft = row.scrollLeft;
+    drag.moved = false;
+
+    const handleMove = (moveEvent) => {
+      const deltaX = moveEvent.clientX - drag.startX;
+      if (!drag.moved && Math.abs(deltaX) < 5) return;
+
+      drag.moved = true;
+      setIsDraggingFilters(true);
+      row.scrollLeft = drag.startScrollLeft - deltaX;
+    };
+
+    const handleUp = () => {
+      drag.cleanup?.();
+      if (drag.moved) {
+        // The click that follows mouseup should not select a chip.
+        drag.suppressClick = true;
+        setTimeout(() => {
+          drag.suppressClick = false;
+        }, 0);
+      }
+    };
+
+    drag.cleanup = () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+      drag.cleanup = null;
+      setIsDraggingFilters(false);
+    };
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+  }, []);
+
+  const handleFilterClickCapture = useCallback((event) => {
+    if (filterDragRef.current.suppressClick) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }, []);
 
   const safeSlides = useMemo(
     () =>
@@ -50,8 +104,9 @@ const Hero = ({
   const filters = [
     { id: "all", label: "All" },
     { id: "online", label: "Online" },
-    { id: "in-person", label: "In Person" },
+    { id: "offline", label: "Offline" },
     { id: "free", label: "Free" },
+    { id: "paid", label: "Paid" },
     { id: "upcoming", label: "Upcoming" },
     { id: "budget", label: "Budget" },
     { id: "premium", label: "Premium" },
@@ -87,7 +142,24 @@ const Hero = ({
                 />
               </div>
 
-              <div className="flex items-center gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:max-w-[58%]">
+              <div
+                ref={filterRowRef}
+                className={`flex select-none items-center gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>button]:cursor-[inherit] lg:max-w-[58%] ${
+                  isDraggingFilters ? "cursor-grabbing" : "cursor-grab"
+                }`}
+                onMouseDown={handleFilterMouseDown}
+                onClickCapture={handleFilterClickCapture}
+                onDragStart={(event) => event.preventDefault()}
+                onWheel={(event) => {
+                  const row = event.currentTarget;
+                  const hasHorizontalOverflow = row.scrollWidth > row.clientWidth;
+
+                  if (hasHorizontalOverflow && Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+                    row.scrollLeft += event.deltaY;
+                    event.preventDefault();
+                  }
+                }}
+              >
                 <div className="flex h-10 shrink-0 items-center justify-center rounded-full border border-emerald-100 bg-[#F4F9F6] px-2.5 text-emerald-700 shadow-[inset_0_1px_0_rgba(16,185,129,0.06)]">
                   <SlidersHorizontal className="h-4 w-4" />
                 </div>
@@ -96,11 +168,9 @@ const Hero = ({
                   <button
                     key={filter.id}
                     type="button"
-                    onClick={() => onFilterChange(filter.id === activeFilter ? null : filter.id)}
+                    onClick={() => onFilterChange(filter.id)}
                     className={`whitespace-nowrap rounded-full px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.15em] transition-all duration-200 sm:text-[11px] ${
-                      filter.id === "in-person" ? "hidden sm:inline-flex" : ""
-                    } ${
-                      activeFilter === filter.id
+                      activeFilters.includes(filter.id)
                         ? "bg-[#059669] text-white shadow-[0_1px_3px_rgba(6,78,59,0.10)]"
                         : "bg-[#F8FBF9] text-slate-600 hover:bg-[#ECFDF5] hover:text-emerald-700"
                     }`}
@@ -120,7 +190,7 @@ const Hero = ({
                 className="h-full w-full rounded-[16px] object-cover sm:rounded-none"
               />
 
-              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(15,23,42,0.20)_0%,rgba(15,23,42,0.08)_45%,rgba(15,23,42,0.02)_100%)] sm:bg-[radial-gradient(60%_60%_at_50%_0%,rgba(16,185,129,0.12)_0%,rgba(255,255,255,0)_100%),linear-gradient(90deg,rgba(5,150,105,0.62)_0%,rgba(16,185,129,0.30)_38%,rgba(15,23,42,0.14)_100%)]" />
+              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(15,23,42,0.20)_0%,rgba(15,23,42,0.08)_45%,rgba(15,23,42,0.02)_100%)] sm:bg-[radial-gradient(60%_60%_at_50%_0%,rgba(16,185,129,0.12)_0%,rgba(255,255,255,0)_100%),linear-gradient(90deg,rgba(5,150,105,0.62)_0%,rgba(16,185,129,0.30)_38%,rgba(15,23,42,0.14)_100%)] lg:bg-[linear-gradient(90deg,rgba(15,23,42,0.20)_0%,rgba(15,23,42,0.08)_45%,rgba(15,23,42,0.02)_100%)]" />
 
               <div className="absolute inset-x-3 bottom-3 z-10 flex items-end justify-between gap-3 sm:inset-x-4 sm:bottom-4">
                 <div className="max-w-[70%] rounded-2xl border border-white/20 bg-emerald-950/20 px-3 py-2 backdrop-blur-sm sm:px-4">

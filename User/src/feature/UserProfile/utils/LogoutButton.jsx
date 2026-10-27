@@ -27,7 +27,7 @@ export default function LogoutButton() {
     <>
       <button
         onClick={() => setIsModalOpen(true)}
-        className="flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3.5 py-2 text-xs font-semibold text-rose-400 transition-all hover:bg-rose-500 hover:text-white active:scale-95"
+        className="flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3.5 py-2 text-xs font-semibold text-rose-600 transition-all hover:bg-rose-600 hover:text-white active:scale-95"
       >
         <LogOut className="h-4 w-4" />
         <span>Logout</span>

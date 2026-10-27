@@ -1,5 +1,13 @@
 node_modules
 dist
+.env*
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.bak*
 .git
 .gitignore
 npm-debug.log

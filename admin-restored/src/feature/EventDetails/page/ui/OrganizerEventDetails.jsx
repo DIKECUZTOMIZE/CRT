@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { ArrowLeft, ChevronRight, Settings2, Trash2 } from "lucide-react";
@@ -17,6 +17,7 @@ import { PaymentNotice } from "../components/PaymentNotice/PaymentNotice.jsx";
 import { ContactOrganizer } from "../components/ContactOrganizer/ContactOrganizer.jsx";
 
 import { useOrganizerEventDetails } from "../../hook/useOrganizerEventDetails.jsx";
+import { API_BASE_URL } from "../../../../app/config/apiBase.js";
 
 const EVENT_TABS = [
   { id: "overview-section", label: "Overview" },
@@ -39,6 +40,7 @@ export const OrganizerEventDetails = ({
   onEditOpen,
   deletingEvent: parentDeletingEvent,
   onDeleteEvent,
+  refreshKey = 0,
 }) => {
   const { id: routeId } = useParams();
   const navigate = useNavigate();
@@ -51,6 +53,15 @@ export const OrganizerEventDetails = ({
   const isBookmarked = hookResult.isBookmarked;
   const toggleBookmark = hookResult.toggleBookmark;
   const refetch = hookResult.refetch;
+  const applyEvent = hookResult.applyEvent;
+  const handledRefreshKeyRef = useRef(refreshKey);
+
+  // The hook's event takes priority over the parent's, so push the parent's saved event into it before paint.
+  useLayoutEffect(() => {
+    if (refreshKey === handledRefreshKeyRef.current) return;
+    handledRefreshKeyRef.current = refreshKey;
+    if (propEvent && applyEvent) applyEvent(propEvent);
+  }, [refreshKey, propEvent, applyEvent]);
 
   const [activeTab, setActiveTab] = useState("overview-section");
   const [localStatusDraft, setLocalStatusDraft] = useState("upcoming");
@@ -97,9 +108,9 @@ export const OrganizerEventDetails = ({
     setResultEntries(nextEntries);
   }, [event]);
 
-  const isOfficiallyCompleted = Boolean(event?.completionConfirmedAt) || (
-    String(event?.status || "").toLowerCase() === "completed" && Array.isArray(event?.results) && event.results.length > 0
-  );
+  const isOfficiallyCompleted =
+    String(event?.status || "").trim().toLowerCase() === "cancelled"
+    && Boolean(event?.completionConfirmedAt);
   const isCompleteActionAvailable = Boolean(event) && String(event?.status || "").toLowerCase() !== "completed";
 
   const handleBack = () => {
@@ -183,7 +194,7 @@ export const OrganizerEventDetails = ({
         statusReason: normalizedReason,
       };
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}/api/events/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/events/${id}`, {
         method: "PUT",
         credentials: "include",
         headers: {
@@ -210,7 +221,7 @@ export const OrganizerEventDetails = ({
   };
 
   const handleCompleteSelection = (nextValue) => {
-    if (nextValue === "completed") {
+    if (nextValue === "completed" && isCompleteActionAvailable) {
       setCompletionPreviousStatus(statusDraft || event?.status || "upcoming");
       setStatusDraft("completed");
       setCompletionConfirmOpen(true);
@@ -233,7 +244,7 @@ export const OrganizerEventDetails = ({
 
     try {
       setCompletingEvent(true);
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}/api/events/${id}/complete`, {
+      const response = await fetch(`${API_BASE_URL}/api/events/${id}/complete`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -270,7 +281,7 @@ export const OrganizerEventDetails = ({
 
   const handleSaveResult = async () => {
     if (!id || !isOfficiallyCompleted) {
-      toast.error("Results can only be saved after the event is finally completed.");
+      toast.error("Results can only be saved after the event is finally cancelled.");
       return;
     }
 
@@ -295,7 +306,7 @@ export const OrganizerEventDetails = ({
 
     try {
       setSavingResult(true);
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}/api/events/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/events/${id}`, {
         method: "PUT",
         credentials: "include",
         headers: {
@@ -708,7 +719,7 @@ export const OrganizerEventDetails = ({
                 <div className="w-full max-w-md rounded-2xl border border-amber-500/30 bg-slate-900 p-5 shadow-2xl">
                   <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-amber-400">Warning</div>
                   <p className="text-sm leading-6 text-slate-200">
-                    Warning: Completing this event is a final action. After completion, the Edit Form and normal Status Update will no longer be available.
+                    Completing this event records it as finished. As an Admin, you can still edit the event and change its status afterwards.
                   </p>
                   <div className="mt-5 flex items-center justify-end gap-3">
                     <button

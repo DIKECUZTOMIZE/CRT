@@ -22,6 +22,22 @@ const normalizeManualStatus = (value) => {
     return aliases[normalized] ?? normalized;
 };
 
+export const buildExpectedEventStateFilter = (event) => {
+    const filter = {};
+
+    for (const key of ["status", "completionConfirmedAt"]) {
+        if (!Object.prototype.hasOwnProperty.call(event, key) || event[key] === undefined) {
+            filter[key] = { $exists: false };
+        } else if (event[key] === null) {
+            filter[key] = { $exists: true, $eq: null };
+        } else {
+            filter[key] = event[key];
+        }
+    }
+
+    return filter;
+};
+
 export const createEvent = (eventData) => {
     const statusValue = typeof eventData?.status === "string" ? eventData.status.trim() : "";
     const rawStatus = normalizeManualStatus(statusValue || "");
@@ -33,14 +49,19 @@ export const createEvent = (eventData) => {
     return EventModel.create({ ...eventData, status: nextStatus });
 };
 
-export const updateEventByIdForOrganizer = async (organizerId, eventId, eventData) => {
+export const updateEventByIdForOrganizer = async (organizerId, eventId, eventData, expectedEventState = null) => {
     const nextPayload = { ...eventData };
     if (nextPayload.status) {
         nextPayload.status = normalizeManualStatus(nextPayload.status);
     }
 
+    const filter = { _id: eventId, organizerId };
+    if (expectedEventState) {
+        Object.assign(filter, buildExpectedEventStateFilter(expectedEventState));
+    }
+
     return EventModel.findOneAndUpdate(
-        { _id: eventId, organizerId },
+        filter,
         { $set: nextPayload },
         { new: true, runValidators: true }
     ).lean();

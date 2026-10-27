@@ -3,20 +3,21 @@ import { Ticket, Sparkles, AlertCircle } from "lucide-react";
 import DetailAccordion from "../../../../../shared/components/ui/DetailAccordion";
 import { formatCurrency } from "../../../utils/eventDetailsUtils";
 
-export const EntryFee = ({ entryFee, initialOpen = false }) => {
+export const EntryFee = ({ entryFee, initialOpen = false, open, onToggle }) => {
   if (!entryFee) return null;
 
   const categories = Array.isArray(entryFee.categories)
     ? entryFee.categories.filter(
         (cat) =>
           cat &&
-          (cat.label || cat.name || cat.category) &&
-          cat.amount !== undefined &&
-          cat.amount !== null
-      ).map((cat) => ({
-        ...cat,
-        label: cat.label || cat.name || cat.category || "Entry",
-      }))
+        (cat.label ||
+          cat.name ||
+          cat.category ||
+          (cat.amount !== undefined && cat.amount !== null && cat.amount !== ""))
+    ).map((cat) => ({
+      ...cat,
+      label: cat.label || cat.name || cat.category || "",
+    }))
     : [];
 
   const isFree = Boolean(entryFee.isFree) || (categories.length === 0 && Number(entryFee.amount) === 0);
@@ -37,6 +38,8 @@ export const EntryFee = ({ entryFee, initialOpen = false }) => {
       badge={getHeaderBadge()}
       icon={Ticket}
       initialOpen={initialOpen}
+      open={open}
+      onToggle={onToggle}
       viewLabel="View fees"
       hideLabel="Hide details"
       iconClassName="panel-icon--emerald"
@@ -58,9 +61,14 @@ export const EntryFee = ({ entryFee, initialOpen = false }) => {
           {categories.map((cat, idx) => {
             const amount = Number(cat.amount);
             const currency = cat.currency || "INR";
+            const hasAmount =
+              cat.amount !== undefined &&
+              cat.amount !== null &&
+              cat.amount !== "" &&
+              Number.isFinite(amount);
 
             return (
-              <div key={cat.id || idx} className="stack-item">
+              <div key={cat.id || idx} className="stack-item stack-item--light">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <p className="truncate text-xs font-bold text-slate-900">{cat.label}</p>
@@ -76,9 +84,11 @@ export const EntryFee = ({ entryFee, initialOpen = false }) => {
                   )}
                 </div>
 
-                <span className="shrink-0 text-xs font-black text-emerald-700 sm:text-sm">
-                  {amount === 0 ? "Free" : formatCurrency(amount, currency)}
-                </span>
+                {hasAmount && (
+                  <span className="shrink-0 text-xs font-black text-emerald-700 sm:text-sm">
+                    {amount === 0 ? "Free" : formatCurrency(amount, currency)}
+                  </span>
+                )}
               </div>
             );
           })}
@@ -86,7 +96,7 @@ export const EntryFee = ({ entryFee, initialOpen = false }) => {
       )}
 
       {!isFree && categories.length === 0 && entryFee.amount !== undefined && (
-        <div className="stack-item">
+        <div className="stack-item stack-item--light">
           <span className="text-xs font-bold text-slate-700">Standard Entry</span>
           <span className="text-xs font-black text-emerald-700 sm:text-sm">
             {formatCurrency(Number(entryFee.amount), entryFee.currency || "INR")}

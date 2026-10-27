@@ -2,8 +2,8 @@
 
 ## 1. Required production setup
 
-- Replace all placeholder secrets in `backend-restored/app/.env.production.example`
-- Copy to `backend-restored/app/.env.production`
+- Replace all placeholder secrets in `backend-restored/.env.production.example`
+- Copy to `backend-restored/.env.production`
 - Copy frontend env examples to real production env files
 - Generate real TLS certificates for your domains
 - Put certificates in `nginx/certs/fullchain.pem` and `nginx/certs/privkey.pem`

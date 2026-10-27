@@ -53,8 +53,8 @@ export default function UserSettingsCard() {
   };
 
   return (
-    <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-      <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-400">
+    <div className="space-y-4 rounded-2xl border border-emerald-100 bg-white p-5">
+      <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-600">
         Account Actions
       </h3>
 
@@ -63,7 +63,7 @@ export default function UserSettingsCard() {
           type="button"
           onClick={handleOpenOrganizerPortal}
           disabled={isHandingOff}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-2.5 text-xs font-bold text-emerald-300 transition-all hover:bg-emerald-500 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-70"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-2.5 text-xs font-bold text-emerald-700 transition-all hover:bg-emerald-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
         >
           <ArrowUpRight className="h-4 w-4" />
           <span>{isHandingOff ? "Opening Organizer Portal..." : "Open Organizer Portal"}</span>
@@ -71,7 +71,7 @@ export default function UserSettingsCard() {
 
         <button
           onClick={() => setIsLogoutOpen(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 py-2.5 text-xs font-bold text-rose-400 transition-all hover:bg-rose-600 hover:text-white"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 py-2.5 text-xs font-bold text-rose-600 transition-all hover:bg-rose-600 hover:text-white"
         >
           <LogOut className="h-4 w-4" />
           <span>Log Out of Account</span>

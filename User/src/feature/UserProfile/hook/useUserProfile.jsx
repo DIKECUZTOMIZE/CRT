@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import { getUserProfile, getSavedEvents } from "../api/userProfile.api.js";
+import { hasRoleAccess } from "../../../app/utils/roleUtils.js";
 
 const normalizeUserProfile = (user) => {
   const normalizedUser =
@@ -32,7 +33,7 @@ const normalizeUserProfile = (user) => {
     name: normalizedUser.name || normalizedUser.fullName || username,
     username,
     email: normalizedUser.email || user?.email || "",
-    role: normalizedUser.role || user?.role || "USER",
+    role: hasRoleAccess(normalizedUser, "USER") ? "USER" : normalizedUser.role || user?.role || "USER",
     avatar,
     savedEvents: Number(normalizedUser.savedEvents ?? user?.savedEvents ?? 0),
     interestedEvents: Number(normalizedUser.interestedEvents ?? user?.interestedEvents ?? 0),

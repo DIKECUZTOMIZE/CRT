@@ -15,7 +15,15 @@ export default function EventCustomFields() {
     name: "customFields",
   });
 
+  const visibleCustomFields = (customFields || []).filter((field) => {
+    const fieldName = String(field?.fieldName || "").trim();
+    return !/^(test|testing)$/i.test(fieldName);
+  });
+
   const hasCustomFields = watch("hasCustomFields");
+  const isCustomFieldsVisible = hasCustomFields === undefined || hasCustomFields === "Yes" || hasCustomFields === true;
+
+  if (!isCustomFieldsVisible) return null;
 
   return (
     <FormSection
@@ -36,8 +44,8 @@ export default function EventCustomFields() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500">
-              {customFields.length > 0 &&
-                `Total Fields: ${customFields.length}`}
+              {visibleCustomFields.length > 0 &&
+                `Total Fields: ${visibleCustomFields.length}`}
             </span>
 
             <button
@@ -56,7 +64,7 @@ export default function EventCustomFields() {
             </button>
           </div>
 
-          {customFields.length === 0 ? (
+          {visibleCustomFields.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-4 py-7 text-center">
               <FormInput className="mx-auto mb-2 h-7 w-7 text-slate-300" />
               <p className="text-xs font-medium text-slate-600">
@@ -69,7 +77,7 @@ export default function EventCustomFields() {
             </div>
           ) : (
             <div className="space-y-3">
-              {customFields.map((field, index) => (
+              {visibleCustomFields.map((field, index) => (
                 <div
                   key={field.id}
                   className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 sm:flex-row sm:items-center sm:gap-4"

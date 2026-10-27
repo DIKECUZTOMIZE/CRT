@@ -1,5 +1,6 @@
 import { AppError } from "../../shared/error/appError.js";
 import { NotFoundError } from "../../shared/error/notFound.error.js";
+import EventModel, { deriveEventStatus } from "../../model/event.model.js";
 import UserModel from "../../model/user.model.js";
 
 export const normalizeAddressForStorage = (value = "") => {
@@ -95,6 +96,24 @@ export const getOrganizerProfileService = async (userId) => {
     throw new NotFoundError("Organizer not found");
   }
 
+  const organizerEvents = await EventModel.find({ organizerId: userId }).lean();
+  const totalEvents = organizerEvents.length;
+  const activeEvents = organizerEvents.filter((event) => ["live", "upcoming"].includes(deriveEventStatus(event))).length;
+
+  const ratingValues = organizerEvents.flatMap((event) => {
+    if (!Array.isArray(event.ratings)) {
+      return [];
+    }
+
+    return event.ratings
+      .map((rating) => Number(rating?.value ?? 0))
+      .filter((value) => Number.isFinite(value) && value >= 1 && value <= 5);
+  });
+
+  const rating = ratingValues.length
+    ? Number((ratingValues.reduce((sum, value) => sum + value, 0) / ratingValues.length).toFixed(1))
+    : 0;
+
   return {
     personal: {
       fullName: user.fullName || "",
@@ -102,6 +121,7 @@ export const getOrganizerProfileService = async (userId) => {
       roleTitle: user.roleTitle || "",
       phone: user.phone || "",
       role: user.role || "ORGANIZER",
+      roles: Array.isArray(user.roles) ? [...user.roles] : undefined,
       avatar: user.avatar || "",
       isVerified: Boolean(user.isVerified),
     },
@@ -113,10 +133,10 @@ export const getOrganizerProfileService = async (userId) => {
       bio: user.bio || "",
     },
     stats: {
-      totalEvents: Number(user?.stats?.totalEvents || 0),
-      activeEvents: Number(user?.stats?.activeEvents || 0),
+      totalEvents,
+      activeEvents,
       totalAttendees: String(user?.stats?.totalAttendees || ""),
-      rating: Number(user?.stats?.rating || 0),
+      rating,
     },
     kyc: {
       status: user.kycStatus || "",

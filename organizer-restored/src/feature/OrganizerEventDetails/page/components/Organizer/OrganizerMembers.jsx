@@ -2,7 +2,7 @@ import React from "react";
 import { Users, Phone } from "lucide-react";
 import DetailAccordion from "../../../../../shared/components/ui/DetailAccordion";
 
-export const OrganizerMembers = ({ members = [], initialOpen = false }) => {
+export const OrganizerMembers = ({ members = [], initialOpen = false, open = false, onToggle }) => {
   if (!Array.isArray(members) || members.length === 0) return null;
 
   const limitedMembers = members.slice(0, 3);
@@ -13,6 +13,8 @@ export const OrganizerMembers = ({ members = [], initialOpen = false }) => {
       badge={`${limitedMembers.length} ${limitedMembers.length === 1 ? "Member" : "Members"}`}
       icon={Users}
       initialOpen={initialOpen}
+      open={open}
+      onToggle={onToggle}
       viewLabel="View team"
       hideLabel="Hide team"
       iconClassName="panel-icon--emerald"
